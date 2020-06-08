@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Task {
+pub struct Pipeline {
 	name: String,
 	desc: Option<String>,
 	attributes: HashMap<String, Attribute>,
 }
 
-impl Task {
-	pub fn new(name: String, desc: Option<String>) -> Task {
-		Task {
+impl Pipeline {
+	pub fn new(name: String, desc: Option<String>) -> Pipeline {
+		Pipeline {
 			name,
 			desc,
 			attributes: HashMap::new(),
