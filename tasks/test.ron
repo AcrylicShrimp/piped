@@ -1,0 +1,9 @@
+Task(
+	name: "Copy a asset",
+	desc: None,
+	pipeline: "copy",
+	values: {
+		"src": Str("assets/from.txt"),
+		"dst": Str("assets/to.txt"),
+	}
+)

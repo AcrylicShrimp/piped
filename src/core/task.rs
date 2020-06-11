@@ -1,11 +1,22 @@
 use super::pipeline::Pipeline;
 use super::value::Value;
+use ron::de::from_str;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub struct Task<'pipeline> {
 	name: String,
 	desc: Option<String>,
 	pipeline: &'pipeline Pipeline,
+	values: HashMap<String, Value>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename = "Task")]
+pub struct TaskDefinition {
+	name: String,
+	desc: Option<String>,
+	pipeline: String,
 	values: HashMap<String, Value>,
 }
 
@@ -17,6 +28,21 @@ impl<'pipeline> Task<'pipeline> {
 			pipeline,
 			values: HashMap::new(),
 		}
+	}
+
+	pub fn load(content: &str, pipelines: &'pipeline HashMap<String, Pipeline>) -> Task<'pipeline> {
+		let task_definition: TaskDefinition = from_str(content).unwrap();
+		let mut task = Task::new(
+			task_definition.name.clone(),
+			task_definition.desc,
+			pipelines.get(&task_definition.pipeline).unwrap(),
+		);
+
+		for (name, value) in task_definition.values.into_iter() {
+			task.add_value(name, value);
+		}
+
+		task
 	}
 
 	pub fn name(&self) -> &String {
