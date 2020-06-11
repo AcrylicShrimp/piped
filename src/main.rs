@@ -19,5 +19,16 @@ fn main() {
         None,
     ));
 
-    println!("{:?}", pipeline);
+    let mut task = core::task::Task::new("copy-asset".to_owned(), None, pipeline);
+
+    task.add_value(
+        "src".to_owned(),
+        core::value::Value::Str("src/assets/test.png".to_owned()),
+    );
+    task.add_value(
+        "dst".to_owned(),
+        core::value::Value::Str("output/res/test.png".to_owned()),
+    );
+
+    println!("{:?}", task);
 }
