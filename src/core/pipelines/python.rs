@@ -8,8 +8,8 @@ use pyo3::{
 use std::collections::HashMap;
 use std::fs::{read_dir, read_to_string};
 
-pub fn load_all() -> Vec<Pipeline> {
-	let mut pipelines = vec![];
+pub fn load_all() -> HashMap<String, Pipeline> {
+	let mut pipelines = HashMap::new();
 
 	for entry in read_dir("pipelines").unwrap() {
 		let entry = entry.unwrap();
@@ -20,8 +20,9 @@ pub fn load_all() -> Vec<Pipeline> {
 		}
 
 		let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
+		let pipeline = load_file(&read_to_string(path).unwrap(), &filename);
 
-		pipelines.push(load_file(&read_to_string(path).unwrap(), &filename));
+		pipelines.insert(pipeline.name().clone(), pipeline);
 	}
 
 	pipelines
