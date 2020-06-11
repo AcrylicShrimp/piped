@@ -1,9 +1,7 @@
-extern crate serde;
-
 use super::value::{Value, ValueType};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Clone)]
 pub struct Attribute {
 	name: String,
 	desc: Option<String>,
