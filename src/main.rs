@@ -1,34 +1,18 @@
 mod core;
 
 fn main() {
-    let mut pipeline = core::pipeline::Pipeline::new(
-        "copy".to_owned(),
-        Some("copy the src file to dst".to_owned()),
-    );
+    let mut pipelines = core::pipelines::python::load_all();
 
-    pipeline.add_attributes(core::attribute::Attribute::new(
-        "src".to_owned(),
-        Some("a source file to be copied".to_owned()),
-        core::value::ValueType::Str,
-        None,
-    ));
-    pipeline.add_attributes(core::attribute::Attribute::new(
-        "dst".to_owned(),
-        Some("a destination path for the copied file to be placed".to_owned()),
-        core::value::ValueType::Str,
-        None,
-    ));
-
-    let mut task = core::task::Task::new("copy-asset".to_owned(), None, pipeline);
+    let mut task = core::task::Task::new("copy-asset".to_owned(), None, pipelines.swap_remove(0));
 
     task.add_value(
         "src".to_owned(),
-        core::value::Value::Str("src/assets/test.png".to_owned()),
+        core::value::Value::Str("assets/from.txt".to_owned()),
     );
     task.add_value(
         "dst".to_owned(),
-        core::value::Value::Str("output/res/test.png".to_owned()),
+        core::value::Value::Str("assets/to.txt".to_owned()),
     );
 
-    println!("{:?}", task);
+    task.execute();
 }
