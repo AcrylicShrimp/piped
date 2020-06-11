@@ -22,8 +22,8 @@ impl Attribute {
 			Some(default_value) => {
 				if default_value.get_type() != value_type {
 					panic!(
-						"default value {:?} is not {:?} type",
-						default_value, value_type
+						"the given default value {:?} is not compatible with the attribute {:?} which is a {:?} type",
+						default_value, name, value_type
 					);
 				}
 			}
@@ -46,8 +46,8 @@ impl Attribute {
 		self.desc.as_ref()
 	}
 
-	pub fn value_type(&self) -> &ValueType {
-		&self.value_type
+	pub fn value_type(&self) -> ValueType {
+		self.value_type
 	}
 
 	pub fn default_value(&self) -> Option<&Value> {
