@@ -1,9 +1,9 @@
 mod core;
 
 fn main() {
-    let mut pipelines = core::pipelines::python::load_all();
+    let pipelines = core::pipelines::python::load_all();
 
-    let mut task = core::task::Task::new("copy-asset".to_owned(), None, pipelines.swap_remove(0));
+    let mut task = core::task::Task::new("copy-asset".to_owned(), None, pipelines.get(0).unwrap());
 
     task.add_value(
         "src".to_owned(),

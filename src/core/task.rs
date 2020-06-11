@@ -1,18 +1,16 @@
 use super::pipeline::Pipeline;
-use super::value::{Value, ValueType};
-use serde::{Deserialize, Serialize};
+use super::value::Value;
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize)]
-pub struct Task {
+pub struct Task<'pipeline> {
 	name: String,
 	desc: Option<String>,
-	pipeline: Pipeline,
+	pipeline: &'pipeline Pipeline,
 	values: HashMap<String, Value>,
 }
 
-impl Task {
-	pub fn new(name: String, desc: Option<String>, pipeline: Pipeline) -> Task {
+impl<'pipeline> Task<'pipeline> {
+	pub fn new(name: String, desc: Option<String>, pipeline: &'pipeline Pipeline) -> Task {
 		Task {
 			name,
 			desc,
