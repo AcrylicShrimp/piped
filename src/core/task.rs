@@ -1,11 +1,9 @@
-extern crate serde;
-
 use super::pipeline::Pipeline;
 use super::value::{Value, ValueType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Task {
 	name: String,
 	desc: Option<String>,
@@ -55,5 +53,9 @@ impl Task {
 				name
 			),
 		}
+	}
+
+	pub fn execute(&self) {
+		self.pipeline.execute(&self.values);
 	}
 }

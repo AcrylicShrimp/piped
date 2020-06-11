@@ -1,22 +1,34 @@
-extern crate serde;
-
 use super::attribute::Attribute;
+use super::value::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Pipeline {
 	name: String,
 	desc: Option<String>,
 	attributes: HashMap<String, Attribute>,
+
+	#[serde(skip)]
+	#[serde(default = "default_executor")]
+	executor: Box<dyn Fn(&HashMap<String, Attribute>, &HashMap<String, Value>)>,
+}
+
+fn default_executor() -> Box<dyn Fn(&HashMap<String, Attribute>, &HashMap<String, Value>)> {
+	Box::new(move |_attributes, _values| {})
 }
 
 impl Pipeline {
-	pub fn new(name: String, desc: Option<String>) -> Pipeline {
+	pub fn new(
+		name: String,
+		desc: Option<String>,
+		executor: Box<dyn Fn(&HashMap<String, Attribute>, &HashMap<String, Value>)>,
+	) -> Pipeline {
 		Pipeline {
 			name,
 			desc,
 			attributes: HashMap::new(),
+			executor,
 		}
 	}
 
@@ -32,8 +44,28 @@ impl Pipeline {
 		self.attributes.get(name)
 	}
 
-	pub fn add_attributes(&mut self, attribute: Attribute) {
+	pub fn add_attribute(&mut self, attribute: Attribute) {
 		let name = attribute.name().clone();
 		self.attributes.insert(name, attribute);
+	}
+
+	pub fn execute(&self, values: &HashMap<String, Value>) {
+		let mut resolved_values = values.clone();
+
+		for (name, attribute) in self.attributes.iter() {
+			if !resolved_values.contains_key(name) {
+				match attribute.default_value() {
+					Some(default_value) => {
+						resolved_values.insert(name.clone(), default_value.clone());
+					}
+					None => panic!(
+						"failed to supply a value to the attribute {:?} of the pipeline {:?}",
+						name, self.name,
+					),
+				}
+			}
+		}
+
+		(*self.executor)(&self.attributes, &resolved_values);
 	}
 }
