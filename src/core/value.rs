@@ -7,7 +7,7 @@ pub enum Value {
 	Str(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
 pub enum ValueType {
 	Str,
 }
