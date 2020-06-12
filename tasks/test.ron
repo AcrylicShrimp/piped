@@ -1,5 +1,5 @@
 Task(
-	name: "Copy a asset",
+	name: "copy-asset",
 	desc: None,
 	pipeline: "copy",
 	values: {

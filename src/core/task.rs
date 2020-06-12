@@ -1,5 +1,6 @@
 use super::pipeline::Pipeline;
 use super::value::Value;
+use regex::Regex;
 use ron::de::from_str;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -22,6 +23,13 @@ pub struct TaskDefinition {
 
 impl<'pipeline> Task<'pipeline> {
 	pub fn new(name: String, desc: Option<String>, pipeline: &'pipeline Pipeline) -> Task {
+		if !Regex::new("^[a-z][a-z\\d-]*[a-z\\d]?$")
+			.unwrap()
+			.is_match(&name)
+		{
+			panic!("malformed task name");
+		}
+
 		Task {
 			name,
 			desc,

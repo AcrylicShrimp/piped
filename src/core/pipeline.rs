@@ -1,5 +1,6 @@
 use super::attribute::Attribute;
 use super::value::Value;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -24,6 +25,13 @@ impl Pipeline {
 		desc: Option<String>,
 		executor: Box<dyn Fn(&HashMap<String, Attribute>, &HashMap<String, Value>)>,
 	) -> Pipeline {
+		if !Regex::new("^[a-z][a-z\\d-]*[a-z\\d]?$")
+			.unwrap()
+			.is_match(&name)
+		{
+			panic!("malformed pipeline name");
+		}
+
 		Pipeline {
 			name,
 			desc,
