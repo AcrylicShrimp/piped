@@ -84,6 +84,7 @@ pub fn load_file(code: &str, filename: &str) -> Pipeline {
 						match dict.get_item("value_type").unwrap().downcast::<PyString>() {
 							Ok(string) => match string.to_string_lossy().as_ref() {
 								"Str" => ValueType::Str,
+								"StrList" => ValueType::StrList,
 								_ => panic!("malformed attribute value type"),
 							},
 							Err(..) => panic!("the name of a attribute must be a string"),
@@ -99,6 +100,10 @@ pub fn load_file(code: &str, filename: &str) -> Pipeline {
 									name
 								),
 							},
+							_ => panic!(
+								"the default value of the attribute {:?} must be a string",
+								name
+							),
 						},
 						None => None,
 					};
@@ -128,14 +133,14 @@ pub fn load_file(code: &str, filename: &str) -> Pipeline {
 			let py_values = PyDict::new(python);
 
 			for (name, value) in values.iter() {
-				py_values
-					.set_item(
-						name,
-						match value {
-							Value::Str(string) => string,
-						},
-					)
-					.unwrap();
+				match value {
+					Value::Str(string) => {
+						py_values.set_item(name, string).unwrap();
+					}
+					Value::StrList(strings) => {
+						py_values.set_item(name, strings).unwrap();
+					}
+				}
 			}
 
 			functions.call("execute", (py_values,), None).unwrap();

@@ -1,9 +1,9 @@
 Task(
 	name: "copy-asset",
 	desc: None,
-	pipeline: "copy",
+	pipeline: "copy-list",
 	values: {
-		"src": Str("assets/from.txt"),
-		"dst": Str("assets/to.txt"),
+		"src": StrList(["assets/from0.txt", "assets/from1.txt", "assets/from2.txt", "assets/from3.txt"]),
+		"dst": StrList(["assets/to0.txt", "assets/to1.txt", "assets/to2.txt", "assets/to3.txt"]),
 	}
 )
