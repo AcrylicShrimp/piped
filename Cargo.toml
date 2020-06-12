@@ -8,5 +8,6 @@ edition = "2018"
 
 [dependencies]
 pyo3 = "0.10.1"
+regex = "1"
 ron = "0.6.0"
 serde = { version = "1.0", features = ["derive"] }
