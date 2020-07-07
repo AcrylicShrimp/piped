@@ -85,6 +85,7 @@ pub fn load_file(code: &str, filename: &str) -> Pipeline {
 							Ok(string) => match string.to_string_lossy().as_ref() {
 								"Str" => ValueType::Str,
 								"StrList" => ValueType::StrList,
+								"PathList" => ValueType::PathList,
 								_ => panic!("malformed attribute value type"),
 							},
 							Err(..) => panic!("the name of a attribute must be a string"),
@@ -139,6 +140,17 @@ pub fn load_file(code: &str, filename: &str) -> Pipeline {
 					}
 					Value::StrList(strings) => {
 						py_values.set_item(name, strings).unwrap();
+					}
+					Value::PathList(paths) => {
+						py_values
+							.set_item(
+								name,
+								paths
+									.iter()
+									.map(|path| path.to_string_lossy().into_owned())
+									.collect::<Vec<String>>(),
+							)
+							.unwrap();
 					}
 				}
 			}

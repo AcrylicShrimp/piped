@@ -1,15 +1,19 @@
 use serde::{Deserialize, Serialize};
 
+use std::path::PathBuf;
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Clone)]
 pub enum Value {
 	Str(String),
 	StrList(Vec<String>),
+	PathList(Vec<PathBuf>),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
 pub enum ValueType {
 	Str,
 	StrList,
+	PathList,
 }
 
 impl Value {
@@ -17,6 +21,7 @@ impl Value {
 		match self {
 			Value::Str(..) => ValueType::Str,
 			Value::StrList(..) => ValueType::StrList,
+			Value::PathList(..) => ValueType::PathList,
 		}
 	}
 
@@ -69,6 +74,39 @@ impl Value {
 			_ => panic!(
 				"{:?} expected, got {:?}",
 				ValueType::StrList,
+				self.get_type()
+			),
+		}
+	}
+
+	pub fn unwrap_pathlist(self) -> Vec<PathBuf> {
+		match self {
+			Value::PathList(value) => value,
+			_ => panic!(
+				"{:?} expected, got {:?}",
+				ValueType::PathList,
+				self.get_type()
+			),
+		}
+	}
+
+	pub fn unwrap_pathlist_ref(&self) -> &Vec<PathBuf> {
+		match self {
+			Value::PathList(value) => value,
+			_ => panic!(
+				"{:?} expected, got {:?}",
+				ValueType::PathList,
+				self.get_type()
+			),
+		}
+	}
+
+	pub fn unwrap_pathlist_mut(&mut self) -> &mut Vec<PathBuf> {
+		match self {
+			Value::PathList(value) => value,
+			_ => panic!(
+				"{:?} expected, got {:?}",
+				ValueType::PathList,
 				self.get_type()
 			),
 		}
