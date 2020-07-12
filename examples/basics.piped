@@ -1,5 +1,11 @@
 
+"\n\t\"\'\r"
+
 // One-line comment
+
+// Defines variables
+@set foo="value";
+@set bar="value";
 
 // Pre defined variables
 // hostOS:          Current host os name that one of: "linux-x64", "macOS-x64", "windows-x64".
@@ -18,7 +24,7 @@ exec
         "env1": "value",
         "env2": "value",
         "env3": "value",
-    }
+    };
 
 // Gets results of last exec and print them to the stdout and stderr
 @print "exitcode: " lastExecExitCode;
