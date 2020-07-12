@@ -3,8 +3,15 @@ mod core;
 use std::fs::read_to_string;
 
 fn main() {
-    let pipelines = core::pipelines::python::load_all();
-    let task = core::task::Task::load(&read_to_string("tasks/test.ron").unwrap(), &pipelines);
+    let mut lexer = core::lexer::Lexer::new(read_to_string("examples/basics.piped").unwrap());
 
-    task.execute();
+    loop {
+        let token = lexer.next();
+
+        if token.token_type == core::lexer::TokenType::Eof {
+            break;
+        }
+
+        println!("{:#?}", token);
+    }
 }
