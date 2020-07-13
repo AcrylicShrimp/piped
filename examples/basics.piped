@@ -9,7 +9,7 @@
 
 // Pre defined variables
 // hostOS:          Current host os name that one of: "linux-x64", "macOS-x64", "windows-x64".
-// workingDir :     Current working directory for this pipeline execution.
+// workingDir:      Current working directory for this pipeline execution.
 
 // Executes a OS shell command
 exec
