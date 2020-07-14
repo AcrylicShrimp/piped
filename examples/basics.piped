@@ -25,9 +25,9 @@
 //     };
 
 // Gets results of last exec and print them to the stdout and stderr
-// @print "exitcode: " lastExecExitCode;
-// @print "stdout: " lastExecStdOut;
-// @printErr "stderr: " lastExecStdErr;
+@print "exitcode: " lastExecExitCode;
+@print "stdout: " lastExecStdOut;
+@printErr "stderr: " lastExecStdErr;
 
 // Invokes a pipeline
 // copy
