@@ -5,6 +5,7 @@ pub enum AST {
     Set(SetAST),
     Print(PrintAST),
     PrintErr(PrintErrAST),
+    Pipeline(PipelineAST),
 }
 
 #[derive(Debug)]
@@ -21,6 +22,12 @@ pub struct PrintAST {
 #[derive(Debug)]
 pub struct PrintErrAST {
     pub expression_vec: Vec<ExpressionAST>,
+}
+
+#[derive(Debug)]
+pub struct PipelineAST {
+    pub name: Token,
+    pub argument_vec: Vec<(Token, ExpressionAST)>,
 }
 
 #[derive(Debug)]
@@ -42,13 +49,7 @@ enum ParserStatus {
     StatementSet,
     StatementPrint,
     StatementPrintErr,
-    Pipeline {
-        name_token: Token,
-    },
-    PipelineArgument {
-        name_token: Token,
-        arguemnt_token_vec: Vec<Token>,
-    },
+    Pipeline { name_token: Token },
 }
 
 pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
@@ -143,12 +144,12 @@ pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
                             },
                         },
                         TokenType::LiteralInteger => ExpressionAST::Literal {
-                            0: LiteralAST::Bool {
+                            0: LiteralAST::Integer {
                                 0: expression_token,
                             },
                         },
                         TokenType::LiteralString => ExpressionAST::Literal {
-                            0: LiteralAST::Bool {
+                            0: LiteralAST::String {
                                 0: expression_token,
                             },
                         },
@@ -187,12 +188,12 @@ pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
                         },
                     },
                     TokenType::LiteralInteger => ExpressionAST::Literal {
-                        0: LiteralAST::Bool {
+                        0: LiteralAST::Integer {
                             0: expression_token,
                         },
                     },
                     TokenType::LiteralString => ExpressionAST::Literal {
-                        0: LiteralAST::Bool {
+                        0: LiteralAST::String {
                             0: expression_token,
                         },
                     },
@@ -234,12 +235,12 @@ pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
                         },
                     },
                     TokenType::LiteralInteger => ExpressionAST::Literal {
-                        0: LiteralAST::Bool {
+                        0: LiteralAST::Integer {
                             0: expression_token,
                         },
                     },
                     TokenType::LiteralString => ExpressionAST::Literal {
-                        0: LiteralAST::Bool {
+                        0: LiteralAST::String {
                             0: expression_token,
                         },
                     },
@@ -256,12 +257,67 @@ pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
 
             status = ParserStatus::TopLevel;
             continue 'parse;
-        } else if let ParserStatus::Pipeline { name_token } = &status {
-        } else if let ParserStatus::PipelineArgument {
-            name_token,
-            arguemnt_token_vec,
-        } = &mut status
-        {
+        } else if let ParserStatus::Pipeline { name_token } = status {
+            let mut argument_vec = Vec::new();
+
+            loop {
+                let name_token = next(lexer);
+
+                if name_token.token_type == TokenType::Semicolon {
+                    break;
+                }
+
+                if name_token.token_type != TokenType::Id {
+                    panic!("unexpected token \"{:#?}\" found", name_token)
+                }
+
+                next_token(lexer, TokenType::Equal);
+
+                let expression_token = next(lexer);
+
+                if expression_token.token_type != TokenType::LiteralBool
+                    && expression_token.token_type != TokenType::LiteralInteger
+                    && expression_token.token_type != TokenType::LiteralString
+                    && expression_token.token_type != TokenType::Id
+                {
+                    panic!("unexpected token \"{:#?}\" found", expression_token)
+                }
+
+                argument_vec.push((
+                    name_token,
+                    match expression_token.token_type {
+                        TokenType::LiteralBool => ExpressionAST::Literal {
+                            0: LiteralAST::Bool {
+                                0: expression_token,
+                            },
+                        },
+                        TokenType::LiteralInteger => ExpressionAST::Literal {
+                            0: LiteralAST::Integer {
+                                0: expression_token,
+                            },
+                        },
+                        TokenType::LiteralString => ExpressionAST::Literal {
+                            0: LiteralAST::String {
+                                0: expression_token,
+                            },
+                        },
+                        TokenType::Id => ExpressionAST::Variable {
+                            0: expression_token,
+                        },
+                        _ => unreachable!(),
+                    },
+                ));
+            }
+
+            ast_vec.push(AST::Pipeline {
+                0: PipelineAST {
+                    name: name_token,
+                    argument_vec,
+                },
+            });
+
+            status = ParserStatus::TopLevel;
+            continue 'parse;
         }
     }
 }

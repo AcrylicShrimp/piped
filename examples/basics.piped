@@ -46,10 +46,10 @@
 // @await "my-pipeline";
 // 
 // @nonblock
-// git-clone
-//     repository="https://github.com/AcrylicShrimp/piped.git"
-//     dir=path.join(workdir, "piped-master")
-//     branch="master";
+git_clone
+    repository="https://github.com/AcrylicShrimp/piped.git"
+    dir="piped-master"
+    branch="master";
 // 
 // @nonblock
 // git-clone
