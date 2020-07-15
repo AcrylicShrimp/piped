@@ -7,6 +7,8 @@ pub enum AST {
     Set(SetAST),
     Print(PrintAST),
     PrintErr(PrintErrAST),
+    Await(AwaitAST),
+    AwaitAll,
     Pipeline(PipelineAST),
 }
 
@@ -24,6 +26,11 @@ pub struct PrintAST {
 #[derive(Debug)]
 pub struct PrintErrAST {
     pub expression_vec: Vec<ExpressionAST>,
+}
+
+#[derive(Debug)]
+pub struct AwaitAST {
+    pub name: Option<Token>,
 }
 
 #[derive(Debug)]
@@ -53,6 +60,7 @@ enum ParserStatus {
     StatementSet,
     StatementPrint,
     StatementPrintErr,
+    StatementAwait,
 }
 
 pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
@@ -93,6 +101,10 @@ pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
                 }
                 TokenType::KeywordPrintErr => {
                     status = ParserStatus::StatementPrintErr;
+                    continue 'parse;
+                }
+                TokenType::KeywordAwait => {
+                    status = ParserStatus::StatementAwait;
                     continue 'parse;
                 }
                 _ => panic!("unexpected token \"{:#?}\" found", statement_token),
@@ -141,6 +153,33 @@ pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
 
             ast_vec.push(AST::PrintErr {
                 0: PrintErrAST { expression_vec },
+            });
+
+            status = ParserStatus::TopLevel;
+            continue 'parse;
+        } else if let ParserStatus::StatementAwait = status {
+            let semicolon_or_string_or_all = next(lexer);
+
+            ast_vec.push(match semicolon_or_string_or_all.token_type {
+                TokenType::Semicolon => AST::Await {
+                    0: AwaitAST { name: None },
+                },
+                TokenType::LiteralString => {
+                    next_token(lexer, TokenType::Semicolon);
+                    AST::Await {
+                        0: AwaitAST {
+                            name: Some(semicolon_or_string_or_all),
+                        },
+                    }
+                }
+                TokenType::KeywordAll => {
+                    next_token(lexer, TokenType::Semicolon);
+                    AST::AwaitAll
+                }
+                _ => panic!(
+                    "unexpected token \"{:#?}\" found",
+                    semicolon_or_string_or_all
+                ),
             });
 
             status = ParserStatus::TopLevel;
