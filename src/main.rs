@@ -1,7 +1,7 @@
 mod compiler;
 mod core;
 
-use compiler::lexer::Lexer;
+use compiler::lookahead_lexer::LookaheadLexer as Lexer;
 use compiler::parser::parse;
 use std::fs::read_to_string;
 
