@@ -43,7 +43,7 @@ pub struct Token {
 
 pub struct Lexer {
     content: Vec<char>,
-    index: usize,
+    pub index: usize,
     max_index: usize,
     line_offset: usize,
     line_number: usize,
