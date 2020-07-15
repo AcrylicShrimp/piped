@@ -48,8 +48,8 @@ copy
 // // Invokes a pipeline in background with its name
 // @nonblock "my-pipeline" my-pipeline param="param value";
 // 
-// // Waits a previous named background pipeline invokation
-// @await "my-pipeline";
+// Waits a previous named background pipeline invokation
+@await "my-pipeline";
 // 
 // @nonblock
 git_clone
@@ -63,8 +63,8 @@ git_clone
 //     dir=path.join(workdir, "piped-v1.0")
 //     tag="v1.0";
 // 
-// @await;         // Waits for any previous unnamed background pipeline invokations
-// @await all;     // Waits for any previous background pipeline invokations
+@await;         // Waits for any previous unnamed background pipeline invokations
+@await all;     // Waits for any previous background pipeline invokations
 // 
 // // Conditional flow control
 // @if hostOS == "linux-x64" {
