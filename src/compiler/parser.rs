@@ -9,6 +9,7 @@ pub enum AST {
     PrintErr(PrintErrAST),
     Await(AwaitAST),
     AwaitAll,
+    NonBlock(NonBlockAST),
     Pipeline(PipelineAST),
 }
 
@@ -31,6 +32,12 @@ pub struct PrintErrAST {
 #[derive(Debug)]
 pub struct AwaitAST {
     pub name: Option<Token>,
+}
+
+#[derive(Debug)]
+pub struct NonBlockAST {
+    pub name: Option<Token>,
+    pub pipeline: PipelineAST,
 }
 
 #[derive(Debug)]
@@ -61,6 +68,7 @@ enum ParserStatus {
     StatementPrint,
     StatementPrintErr,
     StatementAwait,
+    StatementNonBlock,
 }
 
 pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
@@ -105,6 +113,10 @@ pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
                 }
                 TokenType::KeywordAwait => {
                     status = ParserStatus::StatementAwait;
+                    continue 'parse;
+                }
+                TokenType::KeywordNonBlock => {
+                    status = ParserStatus::StatementNonBlock;
                     continue 'parse;
                 }
                 _ => panic!("unexpected token \"{:#?}\" found", statement_token),
@@ -181,6 +193,25 @@ pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
                     semicolon_or_string_or_all
                 ),
             });
+
+            status = ParserStatus::TopLevel;
+            continue 'parse;
+        } else if let ParserStatus::StatementNonBlock = status {
+            let name_token = next_lookahead(lexer);
+
+            ast_vec.push(AST::NonBlock(NonBlockAST {
+                name: if name_token.token_type == TokenType::LiteralString {
+                    next(lexer);
+                    Some(name_token)
+                } else {
+                    None
+                },
+                pipeline: if let AST::Pipeline(pipeline_ast) = parse_pipeline(lexer) {
+                    pipeline_ast
+                } else {
+                    unreachable!()
+                },
+            }));
 
             status = ParserStatus::TopLevel;
             continue 'parse;
