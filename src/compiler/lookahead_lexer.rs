@@ -14,6 +14,7 @@ impl LookaheadLexer {
 	}
 
 	pub fn next_lookahead(&mut self) -> Token {
+		self.lexer.index = self.index;
 		self.lexer.next()
 	}
 
