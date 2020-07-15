@@ -12,6 +12,7 @@ pub enum TokenType {
     Id,
     At,              // @
     Comma,           // ,
+    Colon,           // :
     Semicolon,       // ;
     Equal,           // =
     BraceL,          // {
@@ -189,6 +190,10 @@ impl Lexer {
             ',' => {
                 self.next_character(AdvanceMode::Pre);
                 return return_token(TokenType::Comma, blackspace.to_string());
+            }
+            ':' => {
+                self.next_character(AdvanceMode::Pre);
+                return return_token(TokenType::Colon, blackspace.to_string());
             }
             ';' => {
                 self.next_character(AdvanceMode::Pre);
