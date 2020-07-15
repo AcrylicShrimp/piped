@@ -10,19 +10,19 @@
 // workingDir:      Current working directory for this pipeline execution.
 
 // Executes a OS shell command
-// exec
-//     cmd="os-command"
-//     params=[
-//         "param1",
-//         "param2",
-//         "param3",
-//         "param4",
-//     ]
-//     env={
-//         "env1": "value",
-//         "env2": "value",
-//         "env3": "value",
-//     };
+exec
+    cmd="os-command"
+    params=[
+        "param1",
+        "param2",
+        "param3",
+        "param4",
+    ]
+    env={
+        "env1": "value",
+        "env2": "value",
+        "env3": "value",
+    };
 
 // Gets results of last exec and print them to the stdout and stderr
 @print "exitcode: " lastExecExitCode;
@@ -30,15 +30,21 @@
 @printErr "stderr: " lastExecStdErr;
 
 // Invokes a pipeline
-// copy
-//     src=[
-//         "my-file001.bin",
-//         "my-file002.bin",
-//         "my-file003.bin",
-//         "my-file004.bin"
-//     ]
-//     dst="assets/bin";
-// 
+copy
+    src=[
+        "my-file001.bin",
+        "my-file002.bin",
+        "my-file003.bin",
+        "my-file004.bin",
+        [
+            "fdsaf",
+        ],
+        [
+            "fdsfafds121131",
+        ]
+    ]
+    dst="assets/bin";
+
 // // Invokes a pipeline in background with its name
 // @nonblock "my-pipeline" my-pipeline param="param value";
 // 
