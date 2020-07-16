@@ -65,12 +65,12 @@ git_clone
 
 @await;         // Waits for any previous unnamed background pipeline invokations
 @await all;     // Waits for any previous background pipeline invokations
-// 
-// // Conditional flow control
-// @if hostOS == "linux-x64" {
-//     // Do something that should be executed under linux-x64.
-// } @else if hostOS == "macOS-x64" {
-//     // Do something that should be executed under macOS-x64.
-// } @else {
-//     // Do something that should be executed under windows-x64.
-// }
+
+// Conditional flow control
+@if hostOS == "linux-x64" {
+    // Do something that should be executed under linux-x64.
+} @else if hostOS == "macOS-x64" {
+    // Do something that should be executed under macOS-x64.
+} @else {
+    // Do something that should be executed under windows-x64.
+}
