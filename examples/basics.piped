@@ -5,9 +5,17 @@
 @set foo="value";
 @set bar="value";
 
+@print "foo: " foo;
+@print [foo, bar];
+@print {a:10, bbbbb: 20, "foo---bar": [foo, bar, "baz"] };
+
 // Pre defined variables
-// hostOS:          Current host os name that one of: "linux-x64", "macOS-x64", "windows-x64".
+// hostArch:        Current host cpu architecture name that one of: "x86", "x86_64", "arm".
+// hostOS:          Current host os name that one of: "linux", "macos", "windows".
 // workingDir:      Current working directory for this pipeline execution.
+
+@print "hostArch: " hostArch;
+@print "hostOS: " hostOS;
 
 // Executes a OS shell command
 exec
@@ -25,9 +33,9 @@ exec
     };
 
 // Gets results of last exec and print them to the stdout and stderr
-@print "exitcode: " lastExecExitCode;
-@print "stdout: " lastExecStdOut;
-@printErr "stderr: " lastExecStdErr;
+// @print "exitcode: " lastExecExitCode;
+// @print "stdout: " lastExecStdOut;
+// @printErr "stderr: " lastExecStdErr;
 
 // Invokes a pipeline
 copy
@@ -67,10 +75,12 @@ git_clone
 @await all;     // Waits for any previous background pipeline invokations
 
 // Conditional flow control
-@if hostOS == "linux-x64" {
-    // Do something that should be executed under linux-x64.
-} @else if hostOS == "macOS-x64" {
-    // Do something that should be executed under macOS-x64.
+@if hostOS == "linux" {
+    @print "hello, linux!";
+} @else if hostOS == "macos" {
+    @print "hello, macos!";
+} @else if hostOS == "windows" {
+    @print "hello, windows!";
 } @else {
-    // Do something that should be executed under windows-x64.
+    @print "hello, others!";
 }
