@@ -1,0 +1,9 @@
+@nonblock exec cmd="python3" params=["assets/wait.py"];
+@nonblock exec cmd="python3" params=["assets/wait.py"];
+@nonblock exec cmd="python3" params=["assets/wait.py"];
+@nonblock exec cmd="python3" params=["assets/wait.py"];
+@nonblock exec cmd="python3" params=["assets/wait.py"];
+@nonblock exec cmd="python3" params=["assets/wait.py"];
+
+@print "nonblocks are running in background!";
+@print "awating them...";

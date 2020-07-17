@@ -19,12 +19,12 @@
 
 // Executes a OS shell command
 exec
-    cmd="os-command"
+    cmd="python"
     params=[
-        "param1",
-        "param2",
-        "param3",
-        "param4",
+        "--version",
+//        "param2",
+//        "param3",
+//        "param4",
     ]
     env={
         "env1": "value",
@@ -38,38 +38,38 @@ exec
 // @printErr "stderr: " lastExecStdErr;
 
 // Invokes a pipeline
-copy
-    src=[
-        "my-file001.bin",
-        "my-file002.bin",
-        "my-file003.bin",
-        "my-file004.bin",
-        [
-            "fdsaf",
-        ],
-        [
-            "fdsfafds121131",
-        ]
-    ]
-    dst="assets/bin";
+// copy
+//     src=[
+//         "my-file001.bin",
+//         "my-file002.bin",
+//         "my-file003.bin",
+//         "my-file004.bin",
+//         [
+//             "fdsaf",
+//         ],
+//         [
+//             "fdsfafds121131",
+//         ]
+//     ]
+//     dst="assets/bin";
 
 // Invokes a pipeline in background with its name
-@nonblock "my-pipeline" my_pipeline param="param value";
+// @nonblock "my-pipeline" my_pipeline param="param value";
 
 // Waits a previous named background pipeline invokation
-@await "my-pipeline";
+// @await "my-pipeline";
 
-@nonblock
-git_clone
-    repository="https://github.com/AcrylicShrimp/piped.git"
-    dir="piped-master"
-    branch="master";
+// @nonblock
+// git_clone
+//     repository="https://github.com/AcrylicShrimp/piped.git"
+//     dir="piped-master"
+//     branch="master";
 
-@nonblock
-git_clone
-    repository="https://github.com/AcrylicShrimp/piped.git"
-    dir="piped-master"
-    tag="v1.0";
+// @nonblock
+// git_clone
+//     repository="https://github.com/AcrylicShrimp/piped.git"
+//     dir="piped-master"
+//     tag="v1.0";
 
 @await;         // Waits for any previous unnamed background pipeline invokations
 @await all;     // Waits for any previous background pipeline invokations
