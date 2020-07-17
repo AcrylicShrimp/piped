@@ -1,9 +1,5 @@
-use super::super::compiler::lexer::TokenType;
-use super::super::compiler::parser::{
-	AwaitAST, ExpressionAST, IfAST, LiteralAST, NonBlockAST, PipelineAST, PrintAST, PrintErrAST,
-	SetAST, AST,
-};
-use super::builtins::exec_pipeline::{new as new_exec_pipeline, ExecPipeline};
+use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
+use super::builtins::exec_pipeline::new as new_exec_pipeline;
 use super::pipeline::{Pipeline, PipelineFactory};
 use super::value::Value;
 use std::collections::HashMap;
