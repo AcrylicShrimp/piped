@@ -3,11 +3,16 @@ use super::super::compiler::parser::{
 	AwaitAST, ExpressionAST, IfAST, LiteralAST, NonBlockAST, PipelineAST, PrintAST, PrintErrAST,
 	SetAST, AST,
 };
+use super::builtins::exec_pipeline::{new as new_exec_pipeline, ExecPipeline};
+use super::pipeline::{Pipeline, PipelineFactory};
 use super::value::Value;
 use std::collections::HashMap;
 
 pub struct Context {
 	variable_map: HashMap<String, Value>,
+	pipeline_map: HashMap<String, Box<PipelineFactory>>,
+	named_pipeline_map: HashMap<String, Vec<Box<dyn Pipeline>>>,
+	unnamed_pipeline_vec: Vec<Box<dyn Pipeline>>,
 }
 
 impl Context {
@@ -28,7 +33,20 @@ impl Context {
 		#[cfg(target_os = "windows")]
 		variable_map.insert("hostOS".to_owned(), Value::String("windows".to_owned()));
 
-		Context { variable_map }
+		variable_map.insert("lastExecExitCode".to_owned(), Value::Integer(0));
+		variable_map.insert("lastExecStdOut".to_owned(), Value::String("".to_owned()));
+		variable_map.insert("lastExecStdErr".to_owned(), Value::String("".to_owned()));
+
+		let mut pipeline_map: HashMap<_, Box<PipelineFactory>> = HashMap::new();
+
+		pipeline_map.insert("exec".to_owned(), Box::new(new_exec_pipeline));
+
+		Context {
+			variable_map,
+			pipeline_map,
+			named_pipeline_map: HashMap::new(),
+			unnamed_pipeline_vec: Vec::new(),
+		}
 	}
 
 	pub fn execute(&mut self, ast_vec: &Vec<AST>) {
@@ -52,9 +70,74 @@ impl Context {
 					}
 					eprintln!("");
 				}
-				AST::Await(await_ast) => {}
-				AST::AwaitAll => {}
-				AST::NonBlock(non_block_ast) => {}
+				AST::Await(await_ast) => match &await_ast.name {
+					Some(name) => match self.named_pipeline_map.get_mut(&name.token_content) {
+						Some(named_pipeline_vec) => {
+							for named_pipeline in named_pipeline_vec.iter_mut() {
+								named_pipeline.wait();
+							}
+							named_pipeline_vec.clear();
+						}
+						None => {}
+					},
+					None => {
+						for unnamed_pipeline in self.unnamed_pipeline_vec.iter_mut() {
+							unnamed_pipeline.wait();
+						}
+						self.unnamed_pipeline_vec.clear();
+					}
+				},
+				AST::AwaitAll => {
+					for named_pipeline_vec in self.named_pipeline_map.values_mut() {
+						for named_pipeline in named_pipeline_vec.iter_mut() {
+							named_pipeline.wait();
+						}
+					}
+					self.named_pipeline_map.clear();
+
+					for unnamed_pipeline in self.unnamed_pipeline_vec.iter_mut() {
+						unnamed_pipeline.wait();
+					}
+					self.unnamed_pipeline_vec.clear();
+				}
+				AST::NonBlock(non_block_ast) => {
+					let mut pipeline = match self
+						.pipeline_map
+						.get(&non_block_ast.pipeline.name.token_content)
+					{
+						Some(pipeline) => pipeline(
+							&non_block_ast
+								.pipeline
+								.argument_vec
+								.iter()
+								.map(|(key, value)| {
+									(key.token_content.clone(), self.expression_to_value(value))
+								})
+								.collect(),
+						),
+						None => panic!(
+							"undefined pipeline '{}' used",
+							&non_block_ast.pipeline.name.token_content
+						),
+					};
+
+					pipeline.execute_background();
+
+					match &non_block_ast.name {
+						Some(name) => match self.named_pipeline_map.get_mut(&name.token_content) {
+							Some(named_pipeline_vec) => {
+								named_pipeline_vec.push(pipeline);
+							}
+							None => {
+								self.named_pipeline_map
+									.insert(name.token_content.clone(), vec![pipeline]);
+							}
+						},
+						None => {
+							self.unnamed_pipeline_vec.push(pipeline);
+						}
+					}
+				}
 				AST::If(if_ast) => {
 					if compare_value(
 						&self.expression_to_value(&if_ast.criteria_left),
@@ -65,9 +148,41 @@ impl Context {
 						self.execute(else_ast);
 					}
 				}
-				AST::Pipeline(pipeline_ast) => {}
+				AST::Pipeline(pipeline_ast) => {
+					match self.pipeline_map.get(&pipeline_ast.name.token_content) {
+						Some(pipeline) => {
+							pipeline(
+								&pipeline_ast
+									.argument_vec
+									.iter()
+									.map(|(key, value)| {
+										(key.token_content.clone(), self.expression_to_value(value))
+									})
+									.collect(),
+							)
+							.execute();
+						}
+						None => panic!(
+							"undefined pipeline '{}' used",
+							&pipeline_ast.name.token_content
+						),
+					}
+				}
 			}
 		}
+
+		// TODO: Merge all execuing pipelines to the parent ast execution to improve its performance.
+		for named_pipeline_vec in self.named_pipeline_map.values_mut() {
+			for named_pipeline in named_pipeline_vec.iter_mut() {
+				named_pipeline.wait();
+			}
+		}
+		self.named_pipeline_map.clear();
+
+		for unnamed_pipeline in self.unnamed_pipeline_vec.iter_mut() {
+			unnamed_pipeline.wait();
+		}
+		self.unnamed_pipeline_vec.clear();
 	}
 
 	fn expression_to_value(&self, expression_ast: &ExpressionAST) -> Value {
