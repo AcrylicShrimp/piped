@@ -9,6 +9,9 @@
 @print [foo, bar];
 @print {a:10, bbbbb: 20, "foo---bar": [foo, bar, "baz"] };
 
+// Function calls
+@print "join_path =>" join_path("a", "b", "c");
+
 // Pre defined variables
 // hostArch:        Current host cpu architecture name that one of: "x86", "x86_64", "arm".
 // hostOS:          Current host os name that one of: "linux", "macos", "windows".
