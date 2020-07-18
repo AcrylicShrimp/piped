@@ -12,6 +12,7 @@ pub enum AST {
     NonBlock(NonBlockAST),
     If(IfAST),
     Pipeline(PipelineAST),
+    Call(CallAST),
 }
 
 #[derive(Debug)]
@@ -61,6 +62,7 @@ pub enum ExpressionAST {
     Dictionary(HashMap<String, (Token, ExpressionAST)>),
     Literal(LiteralAST),
     Variable(Token),
+    Call(CallAST),
 }
 
 #[derive(Debug)]
@@ -68,6 +70,12 @@ pub enum LiteralAST {
     Bool(Token),
     Integer(Token),
     String(Token),
+}
+
+#[derive(Debug)]
+pub struct CallAST {
+    pub name: Token,
+    pub argument_vec: Vec<ExpressionAST>,
 }
 
 enum ParserStatus {
@@ -358,6 +366,12 @@ fn parse_block(lexer: &mut Lexer) -> Vec<AST> {
 fn parse_pipeline(lexer: &mut Lexer) -> AST {
     let id_token = next_token(lexer, TokenType::Id);
 
+    if next_lookahead(lexer).token_type == TokenType::ParenL {
+        let call_ast = AST::Call(parse_call(lexer, id_token));
+        next_token(lexer, TokenType::Semicolon);
+        return call_ast;
+    }
+
     let mut argument_vec = Vec::new();
 
     loop {
@@ -386,6 +400,41 @@ fn parse_pipeline(lexer: &mut Lexer) -> AST {
     }
 }
 
+fn parse_call(lexer: &mut Lexer, name_token: Token) -> CallAST {
+    next_token(lexer, TokenType::ParenL);
+
+    let mut expression_vec = Vec::new();
+
+    loop {
+        let token = next_lookahead(lexer);
+
+        if token.token_type == TokenType::ParenR {
+            break;
+        }
+
+        expression_vec.push(parse_expression(lexer));
+
+        let comma_or_parent_token = next_lookahead(lexer);
+
+        match comma_or_parent_token.token_type {
+            TokenType::Comma => {
+                next(lexer);
+            }
+            TokenType::ParenR => {
+                break;
+            }
+            _ => panic!("unexpected token \"{:#?}\" found", comma_or_parent_token),
+        }
+    }
+
+    next_token(lexer, TokenType::ParenR);
+
+    CallAST {
+        name: name_token,
+        argument_vec: expression_vec,
+    }
+}
+
 fn parse_expression(lexer: &mut Lexer) -> ExpressionAST {
     let expression_token = next_lookahead(lexer);
 
@@ -399,7 +448,17 @@ fn parse_expression(lexer: &mut Lexer) -> ExpressionAST {
         TokenType::LiteralString => ExpressionAST::Literal {
             0: LiteralAST::String { 0: next(lexer) },
         },
-        TokenType::Id => ExpressionAST::Variable { 0: next(lexer) },
+        TokenType::Id => {
+            let name_token = next(lexer);
+
+            if next_lookahead(lexer).token_type == TokenType::ParenL {
+                ExpressionAST::Call {
+                    0: parse_call(lexer, name_token),
+                }
+            } else {
+                ExpressionAST::Variable { 0: next(lexer) }
+            }
+        }
         TokenType::BracketL => parse_array(lexer),
         TokenType::BraceL => parse_dict(lexer),
         _ => panic!("unexpected token \"{:#?}\" found", expression_token),

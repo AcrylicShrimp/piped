@@ -15,6 +15,8 @@ pub enum TokenType {
     Colon,           // :
     Semicolon,       // ;
     Equal,           // =
+    ParenL,          // (
+    ParenR,          // )
     BraceL,          // {
     BraceR,          // }
     BracketL,        // [
@@ -198,6 +200,14 @@ impl Lexer {
             ';' => {
                 self.next_character(AdvanceMode::Pre);
                 return return_token(TokenType::Semicolon, blackspace.to_string());
+            }
+            '(' => {
+                self.next_character(AdvanceMode::Pre);
+                return return_token(TokenType::ParenL, blackspace.to_string());
+            }
+            ')' => {
+                self.next_character(AdvanceMode::Pre);
+                return return_token(TokenType::ParenR, blackspace.to_string());
             }
             '{' => {
                 self.next_character(AdvanceMode::Pre);

@@ -1,12 +1,15 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
 use super::builtins::exec_pipeline::new as new_exec_pipeline;
+use super::builtins::functions::JoinPath;
+use super::function::Function;
 use super::pipeline::{Pipeline, PipelineFactory};
 use super::value::Value;
 use std::collections::HashMap;
 
 pub struct Context {
 	variable_map: HashMap<String, Value>,
-	pipeline_map: HashMap<String, Box<PipelineFactory>>,
+	function_map: HashMap<String, Box<dyn Function>>,
+	pipeline_factory_map: HashMap<String, Box<PipelineFactory>>,
 	named_pipeline_map: HashMap<String, Vec<Box<dyn Pipeline>>>,
 	unnamed_pipeline_vec: Vec<Box<dyn Pipeline>>,
 }
@@ -33,13 +36,18 @@ impl Context {
 		variable_map.insert("lastExecStdOut".to_owned(), Value::String("".to_owned()));
 		variable_map.insert("lastExecStdErr".to_owned(), Value::String("".to_owned()));
 
-		let mut pipeline_map: HashMap<_, Box<PipelineFactory>> = HashMap::new();
+		let mut function_map: HashMap<_, Box<dyn Function>> = HashMap::new();
 
-		pipeline_map.insert("exec".to_owned(), Box::new(new_exec_pipeline));
+		function_map.insert("join_path".to_owned(), Box::new(JoinPath::new()));
+
+		let mut pipeline_factory_map: HashMap<_, Box<PipelineFactory>> = HashMap::new();
+
+		pipeline_factory_map.insert("exec".to_owned(), Box::new(new_exec_pipeline));
 
 		Context {
 			variable_map,
-			pipeline_map,
+			function_map,
+			pipeline_factory_map,
 			named_pipeline_map: HashMap::new(),
 			unnamed_pipeline_vec: Vec::new(),
 		}
@@ -49,10 +57,9 @@ impl Context {
 		for ast in ast_vec.iter() {
 			match ast {
 				AST::Set(set_ast) => {
-					self.variable_map.insert(
-						set_ast.name.token_content.clone(),
-						self.expression_to_value(&set_ast.value),
-					);
+					let value = self.expression_to_value(&set_ast.value);
+					self.variable_map
+						.insert(set_ast.name.token_content.clone(), value);
 				}
 				AST::Print(print_ast) => {
 					for expression_ast in print_ast.expression_vec.iter() {
@@ -97,20 +104,20 @@ impl Context {
 					self.unnamed_pipeline_vec.clear();
 				}
 				AST::NonBlock(non_block_ast) => {
+					let argument_map = non_block_ast
+						.pipeline
+						.argument_vec
+						.iter()
+						.map(|(key, value)| {
+							(key.token_content.clone(), self.expression_to_value(value))
+						})
+						.collect();
+
 					let mut pipeline = match self
-						.pipeline_map
+						.pipeline_factory_map
 						.get(&non_block_ast.pipeline.name.token_content)
 					{
-						Some(pipeline) => pipeline(
-							&non_block_ast
-								.pipeline
-								.argument_vec
-								.iter()
-								.map(|(key, value)| {
-									(key.token_content.clone(), self.expression_to_value(value))
-								})
-								.collect(),
-						),
+						Some(pipeline) => pipeline(&argument_map),
 						None => panic!(
 							"undefined pipeline '{}' used",
 							&non_block_ast.pipeline.name.token_content
@@ -145,23 +152,41 @@ impl Context {
 					}
 				}
 				AST::Pipeline(pipeline_ast) => {
-					match self.pipeline_map.get(&pipeline_ast.name.token_content) {
+					let argument_map = pipeline_ast
+						.argument_vec
+						.iter()
+						.map(|(key, value)| {
+							(key.token_content.clone(), self.expression_to_value(value))
+						})
+						.collect();
+
+					match self
+						.pipeline_factory_map
+						.get(&pipeline_ast.name.token_content)
+					{
 						Some(pipeline) => {
-							pipeline(
-								&pipeline_ast
-									.argument_vec
-									.iter()
-									.map(|(key, value)| {
-										(key.token_content.clone(), self.expression_to_value(value))
-									})
-									.collect(),
-							)
-							.execute();
+							pipeline(&argument_map).execute();
 						}
 						None => panic!(
 							"undefined pipeline '{}' used",
 							&pipeline_ast.name.token_content
 						),
+					}
+				}
+				AST::Call(call_ast) => {
+					let argument_expression_vec = call_ast
+						.argument_vec
+						.iter()
+						.map(|expression| self.expression_to_value(expression))
+						.collect();
+
+					match self.function_map.get_mut(&call_ast.name.token_content) {
+						Some(function) => {
+							function.call(argument_expression_vec);
+						}
+						None => {
+							panic!("undefined function '{}' used", &call_ast.name.token_content)
+						}
 					}
 				}
 			}
@@ -181,7 +206,7 @@ impl Context {
 		self.unnamed_pipeline_vec.clear();
 	}
 
-	fn expression_to_value(&self, expression_ast: &ExpressionAST) -> Value {
+	fn expression_to_value(&mut self, expression_ast: &ExpressionAST) -> Value {
 		match expression_ast {
 			ExpressionAST::Array(array) => Value::Array(
 				array
@@ -200,6 +225,18 @@ impl Context {
 				Some(value) => value.clone(),
 				None => panic!("undefined variable '{}' used", &token.token_content),
 			},
+			ExpressionAST::Call(call_ast) => {
+				let argument_expression_vec = call_ast
+					.argument_vec
+					.iter()
+					.map(|expression| self.expression_to_value(expression))
+					.collect();
+
+				match self.function_map.get_mut(&call_ast.name.token_content) {
+					Some(function) => function.call(argument_expression_vec),
+					None => panic!("undefined function '{}' used", &call_ast.name.token_content),
+				}
+			}
 		}
 	}
 }
