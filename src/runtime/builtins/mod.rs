@@ -1,2 +1,2 @@
-pub mod exec_pipeline;
 pub mod functions;
+pub mod pipelines;

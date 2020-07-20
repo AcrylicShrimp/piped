@@ -1,6 +1,6 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
-use super::builtins::exec_pipeline::new as new_exec_pipeline;
 use super::builtins::functions::JoinPath;
+use super::builtins::pipelines::Exec;
 use super::function::Function;
 use super::pipeline::{Pipeline, PipelineFactory};
 use super::value::Value;
@@ -42,7 +42,7 @@ impl Context {
 
 		let mut pipeline_factory_map: HashMap<_, Box<PipelineFactory>> = HashMap::new();
 
-		pipeline_factory_map.insert("exec".to_owned(), Box::new(new_exec_pipeline));
+		pipeline_factory_map.insert("exec".to_owned(), Box::new(Exec::new));
 
 		Context {
 			variable_map,
