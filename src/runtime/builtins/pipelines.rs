@@ -12,29 +12,31 @@ pub struct Exec {
 impl Exec {
     pub fn new(argument_map: &HashMap<String, Value>) -> Box<dyn Pipeline> {
         let cmd = match argument_map.get("cmd") {
-            Some(cmd) => {
-                if let Value::String(cmd) = cmd {
-                    cmd
-                } else {
-                    panic!("'{}' must be a '{:#?}' type", "cmd", ValueType::String)
-                }
-            }
+            Some(cmd) => match cmd.to_strict::<String>() {
+                Some(cmd) => cmd,
+                None => panic!("'{}' must be a '{:#?}' type", "cmd", ValueType::String),
+            },
             None => panic!("'{}' is requied", "cmd"),
         };
         let params = match argument_map.get("params") {
-            Some(params) => {
-                if let Value::Array(array) = params {
-                    array.iter().map(|element| format!("{}", element)).collect()
-                } else {
-                    panic!("'{}' must be a '{:#?}' type", "params", ValueType::Array)
-                }
-            }
+            Some(params) => match params.to_strict::<Vec<String>>() {
+                Some(params) => params,
+                None => panic!(
+                    "'{}' must be a '{:#?}' of '{:#?}' type",
+                    "params",
+                    ValueType::Array,
+                    ValueType::String
+                ),
+            },
             None => vec![],
         };
+
         let mut command = Command::new(cmd);
+
         if !params.is_empty() {
             command.args(params);
         }
+
         Box::new(Exec {
             command,
             child: None,

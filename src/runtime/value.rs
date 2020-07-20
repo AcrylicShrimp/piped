@@ -19,7 +19,70 @@ pub enum ValueType {
 	String,
 }
 
+pub trait FromValue: Sized {
+	fn from_value(value: &Value) -> Option<Self>;
+}
+
+impl<T: FromValue> FromValue for Vec<T> {
+	fn from_value(value: &Value) -> Option<Self> {
+		match value {
+			Value::Array(value_vec) => Some(
+				value_vec
+					.iter()
+					.map(|element| element.to_strict::<T>().unwrap())
+					.collect(),
+			),
+			_ => None,
+		}
+	}
+}
+
+impl<T: FromValue> FromValue for HashMap<String, T> {
+	fn from_value(value: &Value) -> Option<Self> {
+		match value {
+			Value::Dictionary(value_map) => Some(
+				value_map
+					.iter()
+					.map(|pair| (pair.0.clone(), pair.1.to_strict::<T>().unwrap()))
+					.collect(),
+			),
+			_ => None,
+		}
+	}
+}
+
+impl FromValue for i64 {
+	fn from_value(value: &Value) -> Option<Self> {
+		match value {
+			Value::Integer(integer_value) => Some(*integer_value),
+			_ => None,
+		}
+	}
+}
+
+impl FromValue for String {
+	fn from_value(value: &Value) -> Option<Self> {
+		match value {
+			Value::String(string_value) => Some(string_value.clone()),
+			_ => None,
+		}
+	}
+}
+
+impl FromValue for bool {
+	fn from_value(value: &Value) -> Option<Self> {
+		match value {
+			Value::Bool(bool_value) => Some(*bool_value),
+			_ => None,
+		}
+	}
+}
+
 impl Value {
+	pub fn to_strict<T: FromValue>(&self) -> Option<T> {
+		T::from_value(self)
+	}
+
 	pub fn value_type(&self) -> ValueType {
 		match self {
 			Value::Array(..) => ValueType::Array,
