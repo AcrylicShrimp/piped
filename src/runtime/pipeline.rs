@@ -1,10 +1,9 @@
 use super::value::Value;
 use std::collections::HashMap;
 
-pub type PipelineFactory = dyn Fn(&HashMap<String, Value>) -> Box<dyn Pipeline>;
+pub type PipelineFactory = dyn Fn(&HashMap<String, Value>) -> Box<PipelineExecution>;
+pub type PipelineExecution = dyn FnMut() -> PipelineExecutionResult + Send;
 
-pub trait Pipeline {
-	fn execute(&mut self);
-	fn execute_background(&mut self);
-	fn wait(&mut self);
+pub struct PipelineExecutionResult {
+	pub success: bool,
 }

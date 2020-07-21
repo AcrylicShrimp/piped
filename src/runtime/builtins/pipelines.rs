@@ -1,16 +1,14 @@
-use super::super::pipeline::Pipeline;
+use super::super::pipeline::{PipelineExecution, PipelineExecutionResult};
 use super::super::value::{Value, ValueType};
 use std::collections::HashMap;
-use std::io::{stdout, Write};
-use std::process::{Child, Command};
+use std::process::Command;
 
 pub struct Exec {
     command: Command,
-    child: Option<Child>,
 }
 
 impl Exec {
-    pub fn new(argument_map: &HashMap<String, Value>) -> Box<dyn Pipeline> {
+    pub fn new(argument_map: &HashMap<String, Value>) -> Box<PipelineExecution> {
         let cmd = match argument_map.get("cmd") {
             Some(cmd) => match cmd.to_strict::<String>() {
                 Some(cmd) => cmd,
@@ -37,42 +35,16 @@ impl Exec {
             command.args(params);
         }
 
-        Box::new(Exec {
-            command,
-            child: None,
+        Box::new(move || -> PipelineExecutionResult {
+            PipelineExecutionResult {
+                success: match command.spawn() {
+                    Ok(child) => match child.wait_with_output() {
+                        Ok(..) => true,
+                        Err(..) => false,
+                    },
+                    Err(..) => false,
+                },
+            }
         })
-    }
-}
-
-impl Pipeline for Exec {
-    fn execute(&mut self) {
-        match self.command.spawn().unwrap().wait_with_output() {
-            Ok(output) => {
-                stdout().write_all(&output.stdout).unwrap();
-            }
-            Err(err) => {
-                println!("{}", err);
-            }
-        }
-    }
-
-    fn execute_background(&mut self) {
-        if self.child.is_none() {
-            self.child = Some(self.command.spawn().unwrap());
-        }
-    }
-
-    fn wait(&mut self) {
-        match self.child.take() {
-            Some(child) => match child.wait_with_output() {
-                Ok(output) => {
-                    stdout().write_all(&output.stdout).unwrap();
-                }
-                Err(err) => {
-                    println!("{}", err);
-                }
-            },
-            None => {}
-        }
     }
 }

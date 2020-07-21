@@ -2,16 +2,15 @@ use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
 use super::builtins::functions::JoinPath;
 use super::builtins::pipelines::Exec;
 use super::function::Function;
-use super::pipeline::{Pipeline, PipelineFactory};
+use super::pipeline::{PipelineExecutionResult, PipelineFactory};
 use super::value::Value;
 use std::collections::HashMap;
+use std::thread::{spawn, JoinHandle};
 
 pub struct Context {
 	variable_map: HashMap<String, Value>,
 	function_map: HashMap<String, Box<dyn Function>>,
 	pipeline_factory_map: HashMap<String, Box<PipelineFactory>>,
-	named_pipeline_map: HashMap<String, Vec<Box<dyn Pipeline>>>,
-	unnamed_pipeline_vec: Vec<Box<dyn Pipeline>>,
 }
 
 impl Context {
@@ -48,12 +47,34 @@ impl Context {
 			variable_map,
 			function_map,
 			pipeline_factory_map,
-			named_pipeline_map: HashMap::new(),
-			unnamed_pipeline_vec: Vec::new(),
 		}
 	}
 
 	pub fn execute(&mut self, ast_vec: &Vec<AST>) {
+		let (named_pipelines, unnamed_pipelines) = self.__execute(ast_vec);
+
+		for (_, pipeline) in named_pipelines.into_iter() {
+			for pipeline in pipeline {
+				pipeline.join().unwrap();
+			}
+		}
+
+		for pipeline in unnamed_pipelines {
+			pipeline.join().unwrap();
+		}
+	}
+
+	fn __execute(
+		&mut self,
+		ast_vec: &Vec<AST>,
+	) -> (
+		HashMap<String, Vec<JoinHandle<PipelineExecutionResult>>>,
+		Vec<JoinHandle<PipelineExecutionResult>>,
+	) {
+		let mut named_pipeline_map: HashMap<String, Vec<JoinHandle<PipelineExecutionResult>>> =
+			HashMap::new();
+		let mut unnamed_pipeline_vec: Vec<JoinHandle<PipelineExecutionResult>> = Vec::new();
+
 		for ast in ast_vec.iter() {
 			match ast {
 				AST::Set(set_ast) => {
@@ -74,34 +95,33 @@ impl Context {
 					eprintln!("");
 				}
 				AST::Await(await_ast) => match &await_ast.name {
-					Some(name) => match self.named_pipeline_map.get_mut(&name.token_content) {
+					Some(name) => match named_pipeline_map.remove(&name.token_content) {
 						Some(named_pipeline_vec) => {
-							for named_pipeline in named_pipeline_vec.iter_mut() {
-								named_pipeline.wait();
+							for named_pipeline in named_pipeline_vec {
+								named_pipeline.join().unwrap();
 							}
-							named_pipeline_vec.clear();
 						}
 						None => {}
 					},
 					None => {
-						for unnamed_pipeline in self.unnamed_pipeline_vec.iter_mut() {
-							unnamed_pipeline.wait();
+						for unnamed_pipeline in unnamed_pipeline_vec {
+							unnamed_pipeline.join().unwrap();
 						}
-						self.unnamed_pipeline_vec.clear();
+						unnamed_pipeline_vec = Vec::new();
 					}
 				},
 				AST::AwaitAll => {
-					for named_pipeline_vec in self.named_pipeline_map.values_mut() {
-						for named_pipeline in named_pipeline_vec.iter_mut() {
-							named_pipeline.wait();
+					for named_pipeline_vec in named_pipeline_map.into_iter() {
+						for named_pipeline in named_pipeline_vec.1 {
+							named_pipeline.join().unwrap();
 						}
 					}
-					self.named_pipeline_map.clear();
+					named_pipeline_map = HashMap::new();
 
-					for unnamed_pipeline in self.unnamed_pipeline_vec.iter_mut() {
-						unnamed_pipeline.wait();
+					for unnamed_pipeline in unnamed_pipeline_vec {
+						unnamed_pipeline.join().unwrap();
 					}
-					self.unnamed_pipeline_vec.clear();
+					unnamed_pipeline_vec = Vec::new();
 				}
 				AST::NonBlock(non_block_ast) => {
 					let argument_map = non_block_ast
@@ -124,20 +144,20 @@ impl Context {
 						),
 					};
 
-					pipeline.execute_background();
+					let pipeline_join_handle = spawn(move || pipeline());
 
 					match &non_block_ast.name {
-						Some(name) => match self.named_pipeline_map.get_mut(&name.token_content) {
+						Some(name) => match named_pipeline_map.get_mut(&name.token_content) {
 							Some(named_pipeline_vec) => {
-								named_pipeline_vec.push(pipeline);
+								named_pipeline_vec.push(pipeline_join_handle);
 							}
 							None => {
-								self.named_pipeline_map
-									.insert(name.token_content.clone(), vec![pipeline]);
+								named_pipeline_map
+									.insert(name.token_content.clone(), vec![pipeline_join_handle]);
 							}
 						},
 						None => {
-							self.unnamed_pipeline_vec.push(pipeline);
+							unnamed_pipeline_vec.push(pipeline_join_handle);
 						}
 					}
 				}
@@ -146,9 +166,36 @@ impl Context {
 						&self.expression_to_value(&if_ast.criteria_left),
 						&self.expression_to_value(&if_ast.criteria_right),
 					) {
-						self.execute(&if_ast.if_ast_vec);
+						let (named_pipelines, unnamed_pipelines) =
+							self.__execute(&if_ast.if_ast_vec);
+
+						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
+							match named_pipeline_map.get_mut(&pipeline_name) {
+								Some(named_pipeline_vec) => {
+									named_pipeline_vec.extend(pipeline);
+								}
+								None => {
+									named_pipeline_map.insert(pipeline_name, pipeline);
+								}
+							}
+						}
+
+						unnamed_pipeline_vec.extend(unnamed_pipelines);
 					} else if let Some(else_ast) = &if_ast.else_ast_vec {
-						self.execute(else_ast);
+						let (named_pipelines, unnamed_pipelines) = self.__execute(else_ast);
+
+						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
+							match named_pipeline_map.get_mut(&pipeline_name) {
+								Some(named_pipeline_vec) => {
+									named_pipeline_vec.extend(pipeline);
+								}
+								None => {
+									named_pipeline_map.insert(pipeline_name, pipeline);
+								}
+							}
+						}
+
+						unnamed_pipeline_vec.extend(unnamed_pipelines);
 					}
 				}
 				AST::Pipeline(pipeline_ast) => {
@@ -165,7 +212,7 @@ impl Context {
 						.get(&pipeline_ast.name.token_content)
 					{
 						Some(pipeline) => {
-							pipeline(&argument_map).execute();
+							pipeline(&argument_map)();
 						}
 						None => panic!(
 							"undefined pipeline '{}' used",
@@ -192,18 +239,7 @@ impl Context {
 			}
 		}
 
-		// TODO: Merge all execuing pipelines to the parent ast execution to improve its performance.
-		for named_pipeline_vec in self.named_pipeline_map.values_mut() {
-			for named_pipeline in named_pipeline_vec.iter_mut() {
-				named_pipeline.wait();
-			}
-		}
-		self.named_pipeline_map.clear();
-
-		for unnamed_pipeline in self.unnamed_pipeline_vec.iter_mut() {
-			unnamed_pipeline.wait();
-		}
-		self.unnamed_pipeline_vec.clear();
+		(named_pipeline_map, unnamed_pipeline_vec)
 	}
 
 	fn expression_to_value(&mut self, expression_ast: &ExpressionAST) -> Value {
