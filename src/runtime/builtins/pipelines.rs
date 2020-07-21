@@ -3,9 +3,7 @@ use super::super::value::{Value, ValueType};
 use std::collections::HashMap;
 use std::process::Command;
 
-pub struct Exec {
-    command: Command,
-}
+pub struct Exec {}
 
 impl Exec {
     pub fn new(argument_map: &HashMap<String, Value>) -> Box<PipelineExecution> {
