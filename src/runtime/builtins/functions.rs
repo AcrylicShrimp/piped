@@ -23,7 +23,9 @@ define_function!(JoinPath(argument_vec) => {
 
     for argument in argument_vec.into_iter() {
         match argument.to_strict::<String>() {
-            Some(string_value) =>{ path.push(string_value);}
+            Some(string_value) =>{
+                path.push(string_value);
+            }
             None => panic!("string is required")
         }
     }
