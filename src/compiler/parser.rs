@@ -1,6 +1,7 @@
-use super::lexer::{Token, TokenType};
+use super::lexer::{LexerError, Token, TokenType};
 use super::lookahead_lexer::LookaheadLexer as Lexer;
 use std::collections::HashMap;
+use std::iter::repeat;
 
 #[derive(Debug)]
 pub enum AST {
@@ -92,17 +93,17 @@ enum ParserStatus {
     StatementIfNextElse(IfAST),
 }
 
-pub fn parse(lexer: &mut Lexer) -> Vec<AST> {
-    let ast_vec = parse_statement_vec(lexer);
-    next_token(lexer, TokenType::Eof);
-    ast_vec
+pub fn parse(lexer: &mut Lexer) -> Result<Vec<AST>, ()> {
+    let ast_vec = parse_statement_vec(lexer)?;
+    next_token(lexer, TokenType::Eof)?;
+    Ok(ast_vec)
 }
 
-fn parse_statement_vec(lexer: &mut Lexer) -> Vec<AST> {
+fn parse_statement_vec(lexer: &mut Lexer) -> Result<Vec<AST>, ()> {
     let mut ast_vec = Vec::new();
 
     loop {
-        let statement_vec = parse_statement(lexer, ParserStatus::TopLevel);
+        let statement_vec = parse_statement(lexer, ParserStatus::TopLevel)?;
 
         if statement_vec.is_empty() {
             break;
@@ -111,35 +112,35 @@ fn parse_statement_vec(lexer: &mut Lexer) -> Vec<AST> {
         ast_vec.extend(statement_vec);
     }
 
-    ast_vec
+    Ok(ast_vec)
 }
 
-fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Vec<AST> {
+fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, ()> {
     let mut ast_vec = Vec::new();
     let mut status = status;
 
     'parse: loop {
         if let ParserStatus::TopLevel = status {
-            let token = next_lookahead(lexer);
+            let token = next_lookahead(lexer)?;
 
             if token.token_type == TokenType::Eof {
-                return ast_vec;
+                return Ok(ast_vec);
             }
 
             if token.token_type == TokenType::At {
-                next(lexer);
+                next(lexer)?;
                 status = ParserStatus::Statement;
                 continue 'parse;
             }
 
             if token.token_type == TokenType::Id {
-                ast_vec.push(parse_pipeline(lexer));
-                return ast_vec;
+                ast_vec.push(parse_pipeline(lexer)?);
+                return Ok(ast_vec);
             }
 
-            return ast_vec;
+            return Ok(ast_vec);
         } else if let ParserStatus::Statement = status {
-            let statement_token = next(lexer);
+            let statement_token = next(lexer)?;
 
             match statement_token.token_type {
                 TokenType::KeywordSet => {
@@ -166,16 +167,22 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Vec<AST> {
                     status = ParserStatus::StatementIf;
                     continue 'parse;
                 }
-                _ => panic!("unexpected token \"{:#?}\" found", statement_token),
+                _ => {
+                    print_last_line_of_token(
+                        &statement_token,
+                        "Only set, print, printErr, await, nonblock or if can be used here.",
+                    );
+                    return Err(());
+                }
             }
         } else if let ParserStatus::StatementSet = status {
-            let name_token = next_token(lexer, TokenType::Id);
+            let name_token = next_token(lexer, TokenType::Id)?;
 
-            next_token(lexer, TokenType::Equal);
+            next_token(lexer, TokenType::Equal)?;
 
-            let expression_ast = parse_expression(lexer);
+            let expression_ast = parse_expression(lexer)?;
 
-            next_token(lexer, TokenType::Semicolon);
+            next_token(lexer, TokenType::Semicolon)?;
 
             ast_vec.push(AST::Set {
                 0: SetAST {
@@ -184,44 +191,44 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Vec<AST> {
                 },
             });
 
-            return ast_vec;
+            return Ok(ast_vec);
         } else if let ParserStatus::StatementPrint = status {
             let mut expression_vec = Vec::new();
 
-            while next_lookahead(lexer).token_type != TokenType::Semicolon {
-                expression_vec.push(parse_expression(lexer));
+            while next_lookahead(lexer)?.token_type != TokenType::Semicolon {
+                expression_vec.push(parse_expression(lexer)?);
             }
 
-            next(lexer);
+            next(lexer)?;
 
             ast_vec.push(AST::Print {
                 0: PrintAST { expression_vec },
             });
 
-            return ast_vec;
+            return Ok(ast_vec);
         } else if let ParserStatus::StatementPrintErr = status {
             let mut expression_vec = Vec::new();
 
-            while next_lookahead(lexer).token_type != TokenType::Semicolon {
-                expression_vec.push(parse_expression(lexer));
+            while next_lookahead(lexer)?.token_type != TokenType::Semicolon {
+                expression_vec.push(parse_expression(lexer)?);
             }
 
-            next(lexer);
+            next(lexer)?;
 
             ast_vec.push(AST::PrintErr {
                 0: PrintErrAST { expression_vec },
             });
 
-            return ast_vec;
+            return Ok(ast_vec);
         } else if let ParserStatus::StatementAwait = status {
-            let semicolon_or_string_or_all = next(lexer);
+            let semicolon_or_string_or_all = next(lexer)?;
 
             ast_vec.push(match semicolon_or_string_or_all.token_type {
                 TokenType::Semicolon => AST::Await {
                     0: AwaitAST { name: None },
                 },
                 TokenType::LiteralString => {
-                    next_token(lexer, TokenType::Semicolon);
+                    next_token(lexer, TokenType::Semicolon)?;
                     AST::Await {
                         0: AwaitAST {
                             name: Some(semicolon_or_string_or_all),
@@ -229,7 +236,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Vec<AST> {
                     }
                 }
                 TokenType::KeywordAll => {
-                    next_token(lexer, TokenType::Semicolon);
+                    next_token(lexer, TokenType::Semicolon)?;
                     AST::AwaitAll
                 }
                 _ => panic!(
@@ -238,41 +245,41 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Vec<AST> {
                 ),
             });
 
-            return ast_vec;
+            return Ok(ast_vec);
         } else if let ParserStatus::StatementNonBlock = status {
-            let name_token = next_lookahead(lexer);
+            let name_token = next_lookahead(lexer)?;
 
             ast_vec.push(AST::NonBlock(NonBlockAST {
                 name: if name_token.token_type == TokenType::LiteralString {
-                    next(lexer);
+                    next(lexer)?;
                     Some(name_token)
                 } else {
                     None
                 },
-                pipeline: if let AST::Pipeline(pipeline_ast) = parse_pipeline(lexer) {
+                pipeline: if let AST::Pipeline(pipeline_ast) = parse_pipeline(lexer)? {
                     pipeline_ast
                 } else {
                     unreachable!()
                 },
             }));
 
-            return ast_vec;
+            return Ok(ast_vec);
         } else if let ParserStatus::StatementIf = status {
-            status = ParserStatus::StatementIfNext(parse_if(lexer));
+            status = ParserStatus::StatementIfNext(parse_if(lexer)?);
             continue 'parse;
         } else if let ParserStatus::StatementIfNext(if_ast) = status {
-            let token = next_lookahead(lexer);
+            let token = next_lookahead(lexer)?;
 
             if token.token_type == TokenType::At {
-                next(lexer);
+                next(lexer)?;
                 status = ParserStatus::StatementIfNextStatement(if_ast);
                 continue 'parse;
             }
 
             ast_vec.push(AST::If(if_ast));
-            return ast_vec;
+            return Ok(ast_vec);
         } else if let ParserStatus::StatementIfNextStatement(if_ast) = status {
-            let statement_token = next(lexer);
+            let statement_token = next(lexer)?;
 
             match statement_token.token_type {
                 TokenType::KeywordSet => {
@@ -309,19 +316,25 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Vec<AST> {
                     status = ParserStatus::StatementIfNextElse(if_ast);
                     continue 'parse;
                 }
-                _ => panic!("unexpected token \"{:#?}\" found", statement_token),
+                _ => {
+                    print_last_line_of_token(
+                        &statement_token,
+                        "Only set, print, printErr, await, nonblock, if or else can be used here.",
+                    );
+                    return Err(());
+                }
             }
         } else if let ParserStatus::StatementIfNextElse(if_ast) = status {
             let mut if_ast = if_ast;
-            let if_or_brace_token = next_lookahead(lexer);
+            let if_or_brace_token = next_lookahead(lexer)?;
 
             match if_or_brace_token.token_type {
                 TokenType::KeywordIf => {
-                    next(lexer);
-                    let mut statement_vec = parse_statement(lexer, ParserStatus::StatementIf);
+                    next(lexer)?;
+                    let mut statement_vec = parse_statement(lexer, ParserStatus::StatementIf)?;
 
                     if statement_vec.is_empty() {
-                        panic!("unexpected token \"{:#?}\" found", next(lexer));
+                        panic!("unexpected token \"{:#?}\" found", next(lexer)?);
                     }
 
                     if_ast.else_ast_vec = Some(vec![statement_vec.drain(0..).next().unwrap()]);
@@ -329,53 +342,53 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Vec<AST> {
                     ast_vec.extend(statement_vec);
                 }
                 TokenType::BraceL => {
-                    if_ast.else_ast_vec = Some(parse_block(lexer));
+                    if_ast.else_ast_vec = Some(parse_block(lexer)?);
                     ast_vec.push(AST::If(if_ast));
                 }
                 _ => panic!("unexpected token \"{:#?}\" found", if_or_brace_token),
             }
 
-            return ast_vec;
+            return Ok(ast_vec);
         } else {
             unreachable!();
         }
     }
 }
 
-fn parse_if(lexer: &mut Lexer) -> IfAST {
-    let criteria_left = parse_expression(lexer);
-    next_token(lexer, TokenType::CompareEq);
-    let criteria_right = parse_expression(lexer);
+fn parse_if(lexer: &mut Lexer) -> Result<IfAST, ()> {
+    let criteria_left = parse_expression(lexer)?;
+    next_token(lexer, TokenType::CompareEq)?;
+    let criteria_right = parse_expression(lexer)?;
 
-    IfAST {
+    Ok(IfAST {
         criteria_left,
         criteria_right,
-        if_ast_vec: parse_block(lexer),
+        if_ast_vec: parse_block(lexer)?,
         else_ast_vec: None,
-    }
+    })
 }
 
-fn parse_block(lexer: &mut Lexer) -> Vec<AST> {
-    next_token(lexer, TokenType::BraceL);
-    let ast_vec = parse_statement_vec(lexer);
-    next_token(lexer, TokenType::BraceR);
+fn parse_block(lexer: &mut Lexer) -> Result<Vec<AST>, ()> {
+    next_token(lexer, TokenType::BraceL)?;
+    let ast_vec = parse_statement_vec(lexer)?;
+    next_token(lexer, TokenType::BraceR)?;
 
-    ast_vec
+    Ok(ast_vec)
 }
 
-fn parse_pipeline(lexer: &mut Lexer) -> AST {
-    let id_token = next_token(lexer, TokenType::Id);
+fn parse_pipeline(lexer: &mut Lexer) -> Result<AST, ()> {
+    let id_token = next_token(lexer, TokenType::Id)?;
 
-    if next_lookahead(lexer).token_type == TokenType::ParenL {
-        let call_ast = AST::Call(parse_call(lexer, id_token));
-        next_token(lexer, TokenType::Semicolon);
-        return call_ast;
+    if next_lookahead(lexer)?.token_type == TokenType::ParenL {
+        let call_ast = AST::Call(parse_call(lexer, id_token)?);
+        next_token(lexer, TokenType::Semicolon)?;
+        return Ok(call_ast);
     }
 
     let mut argument_vec = Vec::new();
 
     loop {
-        let name_token = next(lexer);
+        let name_token = next(lexer)?;
 
         if name_token.token_type == TokenType::Semicolon {
             break;
@@ -385,40 +398,40 @@ fn parse_pipeline(lexer: &mut Lexer) -> AST {
             panic!("unexpected token \"{:#?}\" found", name_token)
         }
 
-        next_token(lexer, TokenType::Equal);
+        next_token(lexer, TokenType::Equal)?;
 
-        let expression_ast = parse_expression(lexer);
+        let expression_ast = parse_expression(lexer)?;
 
         argument_vec.push((name_token, expression_ast));
     }
 
-    AST::Pipeline {
+    Ok(AST::Pipeline {
         0: PipelineAST {
             name: id_token,
             argument_vec,
         },
-    }
+    })
 }
 
-fn parse_call(lexer: &mut Lexer, name_token: Token) -> CallAST {
-    next_token(lexer, TokenType::ParenL);
+fn parse_call(lexer: &mut Lexer, name_token: Token) -> Result<CallAST, ()> {
+    next_token(lexer, TokenType::ParenL)?;
 
     let mut expression_vec = Vec::new();
 
     loop {
-        let token = next_lookahead(lexer);
+        let token = next_lookahead(lexer)?;
 
         if token.token_type == TokenType::ParenR {
             break;
         }
 
-        expression_vec.push(parse_expression(lexer));
+        expression_vec.push(parse_expression(lexer)?);
 
-        let comma_or_parent_token = next_lookahead(lexer);
+        let comma_or_parent_token = next_lookahead(lexer)?;
 
         match comma_or_parent_token.token_type {
             TokenType::Comma => {
-                next(lexer);
+                next(lexer)?;
             }
             TokenType::ParenR => {
                 break;
@@ -427,63 +440,63 @@ fn parse_call(lexer: &mut Lexer, name_token: Token) -> CallAST {
         }
     }
 
-    next_token(lexer, TokenType::ParenR);
+    next_token(lexer, TokenType::ParenR)?;
 
-    CallAST {
+    Ok(CallAST {
         name: name_token,
         argument_vec: expression_vec,
-    }
+    })
 }
 
-fn parse_expression(lexer: &mut Lexer) -> ExpressionAST {
-    let expression_token = next_lookahead(lexer);
+fn parse_expression(lexer: &mut Lexer) -> Result<ExpressionAST, ()> {
+    let expression_token = next_lookahead(lexer)?;
 
-    match expression_token.token_type {
+    Ok(match expression_token.token_type {
         TokenType::LiteralBool => ExpressionAST::Literal {
-            0: LiteralAST::Bool { 0: next(lexer) },
+            0: LiteralAST::Bool { 0: next(lexer)? },
         },
         TokenType::LiteralInteger => ExpressionAST::Literal {
-            0: LiteralAST::Integer { 0: next(lexer) },
+            0: LiteralAST::Integer { 0: next(lexer)? },
         },
         TokenType::LiteralString => ExpressionAST::Literal {
-            0: LiteralAST::String { 0: next(lexer) },
+            0: LiteralAST::String { 0: next(lexer)? },
         },
         TokenType::Id => {
-            let name_token = next(lexer);
+            let name_token = next(lexer)?;
 
-            if next_lookahead(lexer).token_type == TokenType::ParenL {
+            if next_lookahead(lexer)?.token_type == TokenType::ParenL {
                 ExpressionAST::Call {
-                    0: parse_call(lexer, name_token),
+                    0: parse_call(lexer, name_token)?,
                 }
             } else {
-                ExpressionAST::Variable { 0: next(lexer) }
+                ExpressionAST::Variable { 0: next(lexer)? }
             }
         }
-        TokenType::BracketL => parse_array(lexer),
-        TokenType::BraceL => parse_dict(lexer),
+        TokenType::BracketL => parse_array(lexer)?,
+        TokenType::BraceL => parse_dict(lexer)?,
         _ => panic!("unexpected token \"{:#?}\" found", expression_token),
-    }
+    })
 }
 
-fn parse_array(lexer: &mut Lexer) -> ExpressionAST {
-    next_token(lexer, TokenType::BracketL);
+fn parse_array(lexer: &mut Lexer) -> Result<ExpressionAST, ()> {
+    next_token(lexer, TokenType::BracketL)?;
 
     let mut expression_vec = Vec::new();
 
     loop {
-        let token = next_lookahead(lexer);
+        let token = next_lookahead(lexer)?;
 
         if token.token_type == TokenType::BracketR {
             break;
         }
 
-        expression_vec.push(parse_expression(lexer));
+        expression_vec.push(parse_expression(lexer)?);
 
-        let comma_or_bracket_token = next_lookahead(lexer);
+        let comma_or_bracket_token = next_lookahead(lexer)?;
 
         match comma_or_bracket_token.token_type {
             TokenType::Comma => {
-                next(lexer);
+                next(lexer)?;
             }
             TokenType::BracketR => {
                 break;
@@ -492,18 +505,18 @@ fn parse_array(lexer: &mut Lexer) -> ExpressionAST {
         }
     }
 
-    next_token(lexer, TokenType::BracketR);
+    next_token(lexer, TokenType::BracketR)?;
 
-    ExpressionAST::Array { 0: expression_vec }
+    Ok(ExpressionAST::Array { 0: expression_vec })
 }
 
-fn parse_dict(lexer: &mut Lexer) -> ExpressionAST {
-    next_token(lexer, TokenType::BraceL);
+fn parse_dict(lexer: &mut Lexer) -> Result<ExpressionAST, ()> {
+    next_token(lexer, TokenType::BraceL)?;
 
     let mut expression_map = HashMap::new();
 
     loop {
-        let brace_or_name_token = next_lookahead(lexer);
+        let brace_or_name_token = next_lookahead(lexer)?;
 
         if brace_or_name_token.token_type == TokenType::BraceR {
             break;
@@ -515,19 +528,19 @@ fn parse_dict(lexer: &mut Lexer) -> ExpressionAST {
             panic!("unexpected token \"{:#?}\" found", brace_or_name_token)
         }
 
-        next(lexer);
-        next_token(lexer, TokenType::Colon);
+        next(lexer)?;
+        next_token(lexer, TokenType::Colon)?;
 
         expression_map.insert(
             brace_or_name_token.token_content.clone(),
-            (brace_or_name_token, parse_expression(lexer)),
+            (brace_or_name_token, parse_expression(lexer)?),
         );
 
-        let comma_or_brace_token = next_lookahead(lexer);
+        let comma_or_brace_token = next_lookahead(lexer)?;
 
         match comma_or_brace_token.token_type {
             TokenType::Comma => {
-                next(lexer);
+                next(lexer)?;
             }
             TokenType::BraceR => {
                 break;
@@ -536,45 +549,96 @@ fn parse_dict(lexer: &mut Lexer) -> ExpressionAST {
         }
     }
 
-    next_token(lexer, TokenType::BraceR);
+    next_token(lexer, TokenType::BraceR)?;
 
-    ExpressionAST::Dictionary { 0: expression_map }
+    Ok(ExpressionAST::Dictionary { 0: expression_map })
 }
 
-fn next_lookahead(lexer: &mut Lexer) -> Token {
+fn next_lookahead(lexer: &mut Lexer) -> Result<Token, ()> {
     loop {
-        let token = lexer.next_lookahead();
+        match lexer.next_lookahead() {
+            Ok(token) => {
+                if token.token_type == TokenType::Comment {
+                    lexer.next().map_err(|_| ())?;
+                    continue;
+                }
 
-        if token.token_type == TokenType::Comment {
-            lexer.next();
-            continue;
+                return Ok(token);
+            }
+            Err(err) => {
+                handle_lexer_error(err);
+                return Err(());
+            }
         }
-
-        return token;
     }
 }
 
-fn next(lexer: &mut Lexer) -> Token {
+fn next(lexer: &mut Lexer) -> Result<Token, ()> {
     loop {
-        let token = lexer.next();
+        match lexer.next() {
+            Ok(token) => {
+                if token.token_type == TokenType::Comment {
+                    lexer.next().map_err(|_| ())?;
+                    continue;
+                }
 
-        if token.token_type == TokenType::Comment {
-            continue;
+                return Ok(token);
+            }
+            Err(err) => {
+                handle_lexer_error(err);
+                return Err(());
+            }
         }
-
-        return token;
     }
 }
 
-fn next_token(lexer: &mut Lexer, token_type: TokenType) -> Token {
-    let token = next(lexer);
+fn next_token(lexer: &mut Lexer, token_type: TokenType) -> Result<Token, ()> {
+    let token = next(lexer)?;
 
     if token.token_type != token_type {
-        panic!(
-            "{:#?} type is required instead of token \"{:#?}\"",
-            token_type, token
-        );
+        print_last_line_of_token(
+            &token,
+            &format!("It is not allowed here; {:#?} expected.", token_type),
+        )
     }
 
-    token
+    Ok(token)
+}
+
+fn handle_lexer_error(err: LexerError) {
+    match err {
+        LexerError::StringNotClosed(token) => {
+            print_last_line_of_token(&token, "String literals should be closed with \".");
+        }
+        LexerError::UnexpectedCharacter(token) => {
+            print_last_line_of_token(&token, "Remove it, this character is not allowed.");
+        }
+    }
+}
+
+fn print_last_line_of_token(token: &Token, message: &str) {
+    let actual_token_content = token.token_content.trim_end();
+    let actual_len = actual_token_content.len();
+    let begin_index = match actual_token_content.rfind(char::is_whitespace) {
+        Some(index) => index + 1,
+        None => 0,
+    };
+
+    println!(
+        "...from {}:{}:{}",
+        token.file_path, token.line_number, token.line_offset
+    );
+    println!("\t{}", &actual_token_content[begin_index..actual_len]);
+    println!(
+        "\t{}{}",
+        &repeat(" ").take(begin_index).collect::<String>(),
+        &repeat("^")
+            .take(actual_len - begin_index)
+            .collect::<String>(),
+    );
+    println!(
+        "{}{}",
+        &repeat(" ").take(begin_index).collect::<String>(),
+        message,
+    );
 }

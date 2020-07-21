@@ -22,17 +22,23 @@ fn main() {
 
     let input = matches.values_of("input").unwrap().last().unwrap();
 
-    let mut lexer = Lexer::new(match read_to_string(input) {
-        Ok(content) => content,
-        Err(err) => {
-            eprintln!("Unable to open the given path: {}", input);
-            eprintln!("\tbecause: {}", err);
-            eprintln!("\texiting.");
-            exit(-1);
-        }
-    });
-    let ast_vec = parse(&mut lexer);
-    let mut context = Context::new();
+    let mut lexer = Lexer::new(
+        input.to_owned(),
+        match read_to_string(input) {
+            Ok(content) => content,
+            Err(err) => {
+                eprintln!("Unable to open the given path: {}", input);
+                eprintln!("\tbecause: {}", err);
+                eprintln!("\texiting.");
+                exit(-1);
+            }
+        },
+    );
 
-    context.execute(&ast_vec);
+    match parse(&mut lexer) {
+        Ok(ast_vec) => {
+            Context::new().execute(&ast_vec);
+        }
+        Err(()) => exit(-2),
+    }
 }

@@ -38,6 +38,7 @@ pub enum TokenType {
 
 #[derive(Debug)]
 pub struct Token {
+    pub file_path: String,
     pub token_type: TokenType,
     pub token_content: String,
     pub line_number: usize,
@@ -45,6 +46,7 @@ pub struct Token {
 }
 
 pub struct Lexer {
+    file_path: String,
     content: Vec<char>,
     max_index: usize,
     pub index: usize,
@@ -52,13 +54,19 @@ pub struct Lexer {
     pub line_number: usize,
 }
 
+pub enum LexerError {
+    StringNotClosed(Token),
+    UnexpectedCharacter(Token),
+}
+
 impl Lexer {
-    pub fn new(content: String) -> Lexer {
+    pub fn new(file_path: String, content: String) -> Lexer {
         let content = content.replace("\r\n", "\n");
         let content_chars = content.chars().collect::<Vec<char>>();
         let max_index = content_chars.len();
 
         Lexer {
+            file_path,
             content: content_chars,
             max_index,
             index: 0,
@@ -155,30 +163,37 @@ impl Lexer {
             integer.push(self.next_character(AdvanceMode::Post));
         }
 
-        Some(Token {
-            token_type: TokenType::LiteralInteger,
-            token_content: integer,
-            line_offset: line_offset,
-            line_number: self.line_number,
-        })
+        if integer.is_empty() {
+            None
+        } else {
+            Some(Token {
+                file_path: self.file_path.clone(),
+                token_type: TokenType::LiteralInteger,
+                token_content: integer,
+                line_offset: line_offset,
+                line_number: self.line_number,
+            })
+        }
     }
 
-    pub fn next(&mut self) -> Token {
+    pub fn next(&mut self) -> Result<Token, LexerError> {
         let blackspace = self.pick_blackspace();
 
         let mut token = Token {
+            file_path: self.file_path.clone(),
             token_type: TokenType::Unknown,
             token_content: "".to_string(),
             line_number: self.line_number,
             line_offset: self.line_offset,
         };
 
-        let return_token = |token_type: TokenType, token_content: String| -> Token {
-            token.token_type = token_type;
-            token.token_content = token_content;
+        let return_token =
+            |token_type: TokenType, token_content: String| -> Result<Token, LexerError> {
+                token.token_type = token_type;
+                token.token_content = token_content;
 
-            token
-        };
+                Ok(token)
+            };
 
         if blackspace == '\0' {
             return return_token(TokenType::Eof, "".to_string());
@@ -252,7 +267,7 @@ impl Lexer {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
                 match self.parse_integer() {
                     Some(token) => {
-                        return token;
+                        return Ok(token);
                     }
                     None => (),
                 }
@@ -268,7 +283,9 @@ impl Lexer {
                             self.next_character(AdvanceMode::Pre);
 
                             if self.is_eof() {
-                                panic!("unexpected eof reached.");
+                                return Err(LexerError::StringNotClosed {
+                                    0: return_token(TokenType::Unknown, string).ok().unwrap(),
+                                });
                             }
 
                             match self.ch() {
@@ -293,7 +310,9 @@ impl Lexer {
                 }
 
                 if self.ch() != '"' {
-                    panic!("expected \" not detected");
+                    return Err(LexerError::StringNotClosed {
+                        0: return_token(TokenType::Unknown, string).ok().unwrap(),
+                    });
                 }
 
                 self.next_character(AdvanceMode::Pre);
@@ -304,10 +323,16 @@ impl Lexer {
         }
 
         if self.is_punctuation() {
-            return return_token(
-                TokenType::Unknown,
-                self.next_character(AdvanceMode::Post).to_string(),
-            );
+            return Err(LexerError::UnexpectedCharacter {
+                0: {
+                    return_token(
+                        TokenType::Unknown,
+                        self.next_character(AdvanceMode::Post).to_string(),
+                    )
+                    .ok()
+                    .unwrap()
+                },
+            });
         }
 
         let mut content = String::new();
