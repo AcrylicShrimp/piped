@@ -169,6 +169,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                 }
                 _ => {
                     print_last_line_of_token(
+                        lexer,
                         &statement_token,
                         "Only set, print, printErr, await, nonblock or if can be used here.",
                     );
@@ -318,6 +319,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                 }
                 _ => {
                     print_last_line_of_token(
+                        lexer,
                         &statement_token,
                         "Only set, print, printErr, await, nonblock, if or else can be used here.",
                     );
@@ -566,7 +568,7 @@ fn next_lookahead(lexer: &mut Lexer) -> Result<Token, ()> {
                 return Ok(token);
             }
             Err(err) => {
-                handle_lexer_error(err);
+                handle_lexer_error(lexer, err);
                 return Err(());
             }
         }
@@ -585,7 +587,7 @@ fn next(lexer: &mut Lexer) -> Result<Token, ()> {
                 return Ok(token);
             }
             Err(err) => {
-                handle_lexer_error(err);
+                handle_lexer_error(lexer, err);
                 return Err(());
             }
         }
@@ -597,6 +599,7 @@ fn next_token(lexer: &mut Lexer, token_type: TokenType) -> Result<Token, ()> {
 
     if token.token_type != token_type {
         print_last_line_of_token(
+            lexer,
             &token,
             &format!("It is not allowed here; {:#?} expected.", token_type),
         )
@@ -605,18 +608,18 @@ fn next_token(lexer: &mut Lexer, token_type: TokenType) -> Result<Token, ()> {
     Ok(token)
 }
 
-fn handle_lexer_error(err: LexerError) {
+fn handle_lexer_error(lexer: &Lexer, err: LexerError) {
     match err {
         LexerError::StringNotClosed(token) => {
-            print_last_line_of_token(&token, "String literals should be closed with \".");
+            print_last_line_of_token(lexer, &token, "String literals should be closed with \".");
         }
         LexerError::UnexpectedCharacter(token) => {
-            print_last_line_of_token(&token, "Remove it, this character is not allowed.");
+            print_last_line_of_token(lexer, &token, "Remove it, this character is not allowed.");
         }
     }
 }
 
-fn print_last_line_of_token(token: &Token, message: &str) {
+fn print_last_line_of_token(lexer: &Lexer, token: &Token, message: &str) {
     let actual_token_content = token.token_content.trim_end();
     let actual_len = actual_token_content.len();
     let begin_index = match actual_token_content.rfind(char::is_whitespace) {
@@ -628,7 +631,8 @@ fn print_last_line_of_token(token: &Token, message: &str) {
         "...from {}:{}:{}",
         token.file_path, token.line_number, token.line_offset
     );
-    println!("\t{}", &actual_token_content[begin_index..actual_len]);
+    // TODO: Fix or add logics to correctly handle string tokens.
+    println!("\t{}", lexer.src_content()[token.line_number - 1]);
     println!(
         "\t{}{}",
         &repeat(" ").take(begin_index).collect::<String>(),

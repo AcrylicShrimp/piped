@@ -47,6 +47,7 @@ pub struct Token {
 
 pub struct Lexer {
     file_path: String,
+    src_content: Vec<String>,
     content: Vec<char>,
     max_index: usize,
     pub index: usize,
@@ -67,12 +68,20 @@ impl Lexer {
 
         Lexer {
             file_path,
+            src_content: content
+                .split_terminator('\n')
+                .map(|line| line.to_owned())
+                .collect(),
             content: content_chars,
             max_index,
             index: 0,
             line_offset: 1,
             line_number: 1,
         }
+    }
+
+    pub fn src_content(&self) -> &Vec<String> {
+        &self.src_content
     }
 
     fn ch(&self) -> char {

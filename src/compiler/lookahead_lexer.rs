@@ -8,6 +8,10 @@ pub struct LookaheadLexer {
 }
 
 impl LookaheadLexer {
+	pub fn src_content(&self) -> &Vec<String> {
+		self.lexer.src_content()
+	}
+
 	pub fn new(file_path: String, content: String) -> LookaheadLexer {
 		let lexer = Lexer::new(file_path, content);
 		let index = lexer.index;
