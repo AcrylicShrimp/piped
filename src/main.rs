@@ -11,7 +11,7 @@ use std::process::exit;
 fn main() {
     let matches = App::new("piped")
         .version(env!("CARGO_PKG_VERSION"))
-        .about("A pipeline orchestrator for everyone to build softwares easier and faster.")
+        .about(env!("CARGO_PKG_DESCRIPTION"))
         .arg(
             Arg::with_name("input")
                 .help("A pipeline scripe file to execute")
