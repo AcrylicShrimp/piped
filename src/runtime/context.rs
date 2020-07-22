@@ -1,5 +1,5 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
-use super::builtins::functions::{Get, JoinPath};
+use super::builtins::functions::{Get, JoinPath, Typeof};
 use super::builtins::pipelines::Exec;
 use super::function::Function;
 use super::pipeline::{PipelineExecutionResult, PipelineFactory};
@@ -38,6 +38,7 @@ impl Context {
 		let mut function_map: HashMap<_, Box<dyn Function>> = HashMap::new();
 
 		function_map.insert("get".to_owned(), Box::new(Get::new()));
+		function_map.insert("typeof".to_owned(), Box::new(Typeof::new()));
 		function_map.insert("join_path".to_owned(), Box::new(JoinPath::new()));
 
 		let mut pipeline_factory_map: HashMap<_, Box<PipelineFactory>> = HashMap::new();

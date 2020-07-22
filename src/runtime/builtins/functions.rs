@@ -52,12 +52,27 @@ define_function!(Get(argument_vec) => {
          panic!("Type mismatch; only {:#?} or {:#?} can be used here.", ValueType::Array, ValueType::Dictionary)
     }
 });
+define_function!(Typeof(argument_vec) => {
+    if argument_vec.len() != 1 {
+        panic!("1 argument required, got {}.", argument_vec.len())
+    }
+
+    Value::String {
+        0: match argument_vec[0].value_type() {
+            ValueType::Array => "array",
+            ValueType::Dictionary => "dictionary",
+            ValueType::Bool => "bool",
+            ValueType::Integer => "integer",
+            ValueType::String => "string",
+        }.to_owned()
+    }
+});
 define_function!(JoinPath(argument_vec) => {
     let mut path = PathBuf::new();
 
     for argument in argument_vec.into_iter() {
         match argument.to_strict::<String>() {
-            Some(string_value) =>{
+            Some(string_value) => {
                 path.push(string_value);
             }
             None => panic!("string is required")
