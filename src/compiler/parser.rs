@@ -691,20 +691,44 @@ fn print_last_line_of_token(lexer: &Lexer, token: &Token, message: &str) {
         actual_len += 2;
     }
 
+    let max_line_number = lexer.src_content().len();
+    let max_line_number_width = (max_line_number as f64).log(10f64).ceil() as usize;
+
     println!(
-        "...from {}:{}:{}",
+        "{}:{}:{}",
         token.file_path, token.line_number, token.line_offset
     );
-    println!("\t{}", lexer.src_content()[token.line_number - 1]);
+    if 2 <= token.line_number {
+        println!(
+            "{:>width$} | {}",
+            token.line_number - 1,
+            lexer.src_content()[token.line_number - 2],
+            width = max_line_number_width
+        );
+    }
     println!(
-        "\t{}{}",
+        "{:>width$} | {}",
+        token.line_number,
+        lexer.src_content()[token.line_number - 1],
+        width = max_line_number_width
+    );
+    println!(
+        "{}{} {}",
         &repeat(" ")
-            .take(token.line_offset + begin_index - 1)
+            .take(max_line_number_width + 3 + token.line_offset + begin_index - 1)
             .collect::<String>(),
         &repeat("^")
             .take(actual_len - begin_index)
             .collect::<String>(),
+        message
     );
-    println!("{}", message,);
+    if token.line_number < lexer.src_content().len() {
+        println!(
+            "{:>width$} | {}",
+            token.line_number + 1,
+            lexer.src_content()[token.line_number],
+            width = max_line_number_width
+        );
+    }
     println!("");
 }
