@@ -171,7 +171,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "Only set, print, printErr, await, nonblock or if can be used here.",
+                        "A 'set', 'print', 'printErr', 'await', 'nonblock' and 'if' keyword only can be used here.",
                     );
                     return Err(());
                 }
@@ -240,10 +240,14 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     next_token(lexer, TokenType::Semicolon)?;
                     AST::AwaitAll
                 }
-                _ => panic!(
-                    "unexpected token \"{:#?}\" found",
-                    semicolon_or_string_or_all
-                ),
+                _ => {
+                    print_last_line_of_token(
+                        lexer,
+                        &semicolon_or_string_or_all,
+                        "An await statement should be followed by a semicolon, a string literal or an 'all' keyword.",
+                    );
+                    return Err(());
+                }
             });
 
             return Ok(ast_vec);
@@ -257,10 +261,17 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                 } else {
                     None
                 },
-                pipeline: if let AST::Pipeline(pipeline_ast) = parse_pipeline(lexer)? {
-                    pipeline_ast
-                } else {
-                    unreachable!()
+                pipeline: match parse_pipeline(lexer)? {
+                    AST::Pipeline(pipeline_ast) => pipeline_ast,
+                    AST::Call(call_ast) => {
+                        print_last_line_of_token(
+                            lexer,
+                            &call_ast.name,
+                            "A non-block statement should be followed by a pipeline statement.",
+                        );
+                        return Err(());
+                    }
+                    _ => unreachable!(),
                 },
             }));
 
@@ -321,13 +332,12 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "Only set, print, printErr, await, nonblock, if or else can be used here.",
+                        "A 'set', 'print', 'printErr', 'await', 'nonblock', 'if' and 'else' keyword only can be used here.",
                     );
                     return Err(());
                 }
             }
-        } else if let ParserStatus::StatementIfNextElse(if_ast) = status {
-            let mut if_ast = if_ast;
+        } else if let ParserStatus::StatementIfNextElse(mut if_ast) = status {
             let if_or_brace_token = next_lookahead(lexer)?;
 
             match if_or_brace_token.token_type {
@@ -336,7 +346,12 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     let mut statement_vec = parse_statement(lexer, ParserStatus::StatementIf)?;
 
                     if statement_vec.is_empty() {
-                        panic!("unexpected token \"{:#?}\" found", next(lexer)?);
+                        print_last_line_of_token(
+                            lexer,
+                            &if_or_brace_token,
+                            "This if statement is not fully closed; terminated unexpectedly.",
+                        );
+                        return Err(());
                     }
 
                     if_ast.else_ast_vec = Some(vec![statement_vec.drain(0..).next().unwrap()]);
@@ -347,7 +362,14 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     if_ast.else_ast_vec = Some(parse_block(lexer)?);
                     ast_vec.push(AST::If(if_ast));
                 }
-                _ => panic!("unexpected token \"{:#?}\" found", if_or_brace_token),
+                _ => {
+                    print_last_line_of_token(
+                        lexer,
+                        &if_or_brace_token,
+                        "An else statement should be followed by an if statement or a block statement.",
+                    );
+                    return Err(());
+                }
             }
 
             return Ok(ast_vec);
@@ -390,21 +412,26 @@ fn parse_pipeline(lexer: &mut Lexer) -> Result<AST, ()> {
     let mut argument_vec = Vec::new();
 
     loop {
-        let name_token = next(lexer)?;
+        let name_or_semicolon_token = next(lexer)?;
 
-        if name_token.token_type == TokenType::Semicolon {
+        if name_or_semicolon_token.token_type == TokenType::Semicolon {
             break;
         }
 
-        if name_token.token_type != TokenType::Id {
-            panic!("unexpected token \"{:#?}\" found", name_token)
+        if name_or_semicolon_token.token_type != TokenType::Id {
+            print_last_line_of_token(
+                lexer,
+                &name_or_semicolon_token,
+                "An identifier or a semicolon only can be placed here.",
+            );
+            return Err(());
         }
 
         next_token(lexer, TokenType::Equal)?;
 
         let expression_ast = parse_expression(lexer)?;
 
-        argument_vec.push((name_token, expression_ast));
+        argument_vec.push((name_or_semicolon_token, expression_ast));
     }
 
     Ok(AST::Pipeline {
@@ -438,7 +465,14 @@ fn parse_call(lexer: &mut Lexer, name_token: Token) -> Result<CallAST, ()> {
             TokenType::ParenR => {
                 break;
             }
-            _ => panic!("unexpected token \"{:#?}\" found", comma_or_parent_token),
+            _ => {
+                print_last_line_of_token(
+                    lexer,
+                    &comma_or_parent_token,
+                    "A comma or a right parenthesis only can be placed here.",
+                );
+                return Err(());
+            }
         }
     }
 
@@ -476,7 +510,14 @@ fn parse_expression(lexer: &mut Lexer) -> Result<ExpressionAST, ()> {
         }
         TokenType::BracketL => parse_array(lexer)?,
         TokenType::BraceL => parse_dict(lexer)?,
-        _ => panic!("unexpected token \"{:#?}\" found", expression_token),
+        _ => {
+            print_last_line_of_token(
+                lexer,
+                &expression_token,
+                "An expression only can be placed here.",
+            );
+            return Err(());
+        }
     })
 }
 
@@ -503,7 +544,14 @@ fn parse_array(lexer: &mut Lexer) -> Result<ExpressionAST, ()> {
             TokenType::BracketR => {
                 break;
             }
-            _ => panic!("unexpected token \"{:#?}\" found", comma_or_bracket_token),
+            _ => {
+                print_last_line_of_token(
+                    lexer,
+                    &comma_or_bracket_token,
+                    "A comma or a right bracket only can be placed here.",
+                );
+                return Err(());
+            }
         }
     }
 
@@ -527,7 +575,12 @@ fn parse_dict(lexer: &mut Lexer) -> Result<ExpressionAST, ()> {
         if brace_or_name_token.token_type != TokenType::LiteralString
             && brace_or_name_token.token_type != TokenType::Id
         {
-            panic!("unexpected token \"{:#?}\" found", brace_or_name_token)
+            print_last_line_of_token(
+                lexer,
+                &brace_or_name_token,
+                "An identifier or a string literal only can be placed here.",
+            );
+            return Err(());
         }
 
         next(lexer)?;
@@ -547,7 +600,14 @@ fn parse_dict(lexer: &mut Lexer) -> Result<ExpressionAST, ()> {
             TokenType::BraceR => {
                 break;
             }
-            _ => panic!("unexpected token \"{:#?}\" found", comma_or_brace_token),
+            _ => {
+                print_last_line_of_token(
+                    lexer,
+                    &comma_or_brace_token,
+                    "A comma or a right brace only can be placed here.",
+                );
+                return Err(());
+            }
         }
     }
 
