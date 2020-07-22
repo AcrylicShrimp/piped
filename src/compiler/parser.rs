@@ -646,4 +646,5 @@ fn print_last_line_of_token(lexer: &Lexer, token: &Token, message: &str) {
             .collect::<String>(),
     );
     println!("{}", message,);
+    println!("");
 }
