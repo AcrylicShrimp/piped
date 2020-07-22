@@ -621,28 +621,29 @@ fn handle_lexer_error(lexer: &Lexer, err: LexerError) {
 
 fn print_last_line_of_token(lexer: &Lexer, token: &Token, message: &str) {
     let actual_token_content = token.token_content.trim_end();
-    let actual_len = actual_token_content.len();
-    let begin_index = match actual_token_content.rfind(char::is_whitespace) {
+    let mut actual_len = actual_token_content.len();
+    let begin_index = match actual_token_content.rfind('\n') {
         Some(index) => index + 1,
         None => 0,
     };
+
+    if token.token_type == TokenType::LiteralString {
+        actual_len += 2;
+    }
 
     println!(
         "...from {}:{}:{}",
         token.file_path, token.line_number, token.line_offset
     );
-    // TODO: Fix or add logics to correctly handle string tokens.
     println!("\t{}", lexer.src_content()[token.line_number - 1]);
     println!(
         "\t{}{}",
-        &repeat(" ").take(begin_index).collect::<String>(),
+        &repeat(" ")
+            .take(token.line_offset + begin_index - 1)
+            .collect::<String>(),
         &repeat("^")
             .take(actual_len - begin_index)
             .collect::<String>(),
     );
-    println!(
-        "{}{}",
-        &repeat(" ").take(begin_index).collect::<String>(),
-        message,
-    );
+    println!("{}", message,);
 }
