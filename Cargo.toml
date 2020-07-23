@@ -1,7 +1,7 @@
 [package]
 name = "piped"
 description = "A pipeline orchestrator for everyone to build softwares easier and faster"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
 edition = "2018"
 
