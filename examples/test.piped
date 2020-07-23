@@ -1,19 +1,25 @@
 
+@import subpipeline from "./subpipeline.piped";
+
+subpipeline value="foo";
+subpipeline value="bar";
+subpipeline value="baz";
+
 @print "[\"01\", \"02\", \"03\"][0]=" get(["01", "02", "03"], 0);
 @print "[\"01\", \"02\", \"03\"][0]=" typeof(get(["01", "02", "03"], 0));
 @print "{\"1\": 1, \"2\": 2, \"3\": 3}[\"2\"]=" get({"1": 1, "2": 2, "3": 3}, "2");
 @print "{\"1\": 1, \"2\": 2, \"3\": 3}[\"2\"]=" typeof(get({"1": 1, "2": 2, "3": 3}, "2"));
 @print "join_path()=" join_path("C:\\", "test", "my", "test");
 
-// @nonblock exec cmd="python" params=["assets/wait.py"];
-// @nonblock exec cmd="python" params=["assets/wait.py"];
-// @nonblock exec cmd="python" params=["assets/wait.py"];
-// 
-// @await all;
-// 
-// @nonblock exec cmd="python" params=["assets/wait.py"];
-// @nonblock exec cmd="python" params=["assets/wait.py"];
-// @nonblock exec cmd="python" params=["assets/wait.py"];
-// 
-// @print "nonblocks are running in background!";
-// @print "awating them...";
+@nonblock exec cmd="python" params=["assets/wait.py"];
+@nonblock exec cmd="python" params=["assets/wait.py"];
+@nonblock exec cmd="python" params=["assets/wait.py"];
+
+@await all;
+
+@nonblock exec cmd="python" params=["assets/wait.py"];
+@nonblock exec cmd="python" params=["assets/wait.py"];
+@nonblock exec cmd="python" params=["assets/wait.py"];
+
+@print "nonblocks are running in background!";
+@print "awating them...";

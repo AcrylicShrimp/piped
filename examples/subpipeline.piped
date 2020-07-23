@@ -1,0 +1,3 @@
+
+@print "hello from subpipeline!";
+@print value;
