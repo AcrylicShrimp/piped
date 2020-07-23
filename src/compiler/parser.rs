@@ -540,7 +540,7 @@ fn parse_expression(lexer: &mut Lexer) -> Result<ExpressionAST, ()> {
                     0: parse_call(lexer, name_token)?,
                 }
             } else {
-                ExpressionAST::Variable { 0: next(lexer)? }
+                ExpressionAST::Variable { 0: name_token }
             }
         }
         TokenType::BracketL => parse_array(lexer)?,
