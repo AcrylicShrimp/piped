@@ -21,7 +21,6 @@ pub enum TokenType {
     BraceR,          // }
     BracketL,        // [
     BracketR,        // ]
-    CompareEq,       // ==
     LiteralBool,     // true false
     LiteralInteger,  // 0123456789
     LiteralString,   // "..."
@@ -266,15 +265,10 @@ impl Lexer {
                     self.line_offset -= 1;
                 }
             }
-            '=' => match self.next_character(AdvanceMode::Pre) {
-                '=' => {
-                    self.next_character(AdvanceMode::Pre);
-                    return return_token(TokenType::CompareEq, blackspace.to_string());
-                }
-                _ => {
-                    return return_token(TokenType::Equal, blackspace.to_string());
-                }
-            },
+            '=' => {
+                self.next_character(AdvanceMode::Pre);
+                return return_token(TokenType::Equal, blackspace.to_string());
+            }
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
                 match self.parse_integer() {
                     Some(token) => {

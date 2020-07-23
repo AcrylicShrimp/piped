@@ -125,3 +125,74 @@ impl Display for Value {
 		}
 	}
 }
+
+pub fn compare_value(left: &Value, right: &Value) -> bool {
+	if left.value_type() != right.value_type() {
+		return false;
+	}
+
+	match left {
+		Value::Array(left_array) => {
+			if let Value::Array(right_array) = right {
+				if left_array.len() != right_array.len() {
+					return false;
+				}
+
+				for index in 0..left_array.len() {
+					if !compare_value(&left_array[index], &right_array[index]) {
+						return true;
+					}
+				}
+
+				true
+			} else {
+				unreachable!()
+			}
+		}
+		Value::Dictionary(left_dictionary) => {
+			if let Value::Dictionary(right_dictionary) = right {
+				if left_dictionary.len() != right_dictionary.len() {
+					return false;
+				}
+
+				for (key, left_value) in left_dictionary.iter() {
+					match right_dictionary.get(key) {
+						Some(right_value) => {
+							if !compare_value(left_value, right_value) {
+								return false;
+							}
+						}
+						None => {
+							return false;
+						}
+					}
+				}
+
+				true
+			} else {
+				unreachable!()
+			}
+		}
+		Value::Bool(left_bool) => {
+			if let Value::Bool(right_bool) = right {
+				left_bool == right_bool
+			} else {
+				unreachable!()
+			}
+		}
+		Value::Integer(left_integer) => {
+			if let Value::Integer(right_integer) = right {
+				left_integer == right_integer
+			} else {
+				unreachable!()
+			}
+		}
+		Value::String(left_string) => {
+			if let Value::String(right_string) = right {
+				left_string == right_string
+			} else {
+				unreachable!()
+			}
+		}
+	}
+}

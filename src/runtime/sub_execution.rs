@@ -1,5 +1,5 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
-use super::builtins::functions::{Get, IsExists, JoinPath, Typeof};
+use super::builtins::functions::{Equals, Get, IsExists, JoinPath, Typeof};
 use super::builtins::pipelines::Exec;
 use super::execution::Execution;
 use super::function::Function;
@@ -60,6 +60,7 @@ impl SubExecution {
 		function_map.insert("get".to_owned(), Box::new(Get::new()));
 		function_map.insert("typeof".to_owned(), Box::new(Typeof::new()));
 		function_map.insert("is_exists".to_owned(), Box::new(IsExists::new()));
+		function_map.insert("equals".to_owned(), Box::new(Equals::new()));
 		function_map.insert("join_path".to_owned(), Box::new(JoinPath::new()));
 
 		let (named_pipelines, unnamed_pipelines) =
@@ -220,10 +221,13 @@ impl SubExecution {
 					}
 				}
 				AST::If(if_ast) => {
-					if compare_value(
-						&self.expression_to_value(function_map, &if_ast.criteria_left),
-						&self.expression_to_value(function_map, &if_ast.criteria_right),
-					) {
+					if match self.expression_to_value(function_map, &if_ast.criteria) {
+						Value::Array(array_value) => !array_value.is_empty(),
+						Value::Dictionary(dictionary_value) => !dictionary_value.is_empty(),
+						Value::Bool(bool_value) => bool_value,
+						Value::Integer(integer_value) => integer_value != 0,
+						Value::String(string_value) => !string_value.is_empty(),
+					} {
 						let (named_pipelines, unnamed_pipelines) =
 							self.__execute(function_map, pipeline, &if_ast.if_ast_vec);
 
@@ -353,53 +357,5 @@ fn literal_to_value(literal_ast: &LiteralAST) -> Value {
 		LiteralAST::Bool(token) => Value::Bool(token.token_content == "true"),
 		LiteralAST::Integer(token) => Value::Integer(token.token_content.parse::<i64>().unwrap()),
 		LiteralAST::String(token) => Value::String(token.token_content.clone()),
-	}
-}
-
-fn compare_value(left: &Value, right: &Value) -> bool {
-	if left.value_type() != right.value_type() {
-		return false;
-	}
-
-	match left {
-		Value::Array(left_array) => {
-			if let Value::Array(right_array) = right {
-				if left_array.len() != right_array.len() {
-					return false;
-				}
-
-				for index in 0..left_array.len() {
-					if !compare_value(&left_array[index], &right_array[index]) {
-						return true;
-					}
-				}
-
-				true
-			} else {
-				unreachable!()
-			}
-		}
-		Value::Dictionary(left_dictionary) => false,
-		Value::Bool(left_bool) => {
-			if let Value::Bool(right_bool) = right {
-				left_bool == right_bool
-			} else {
-				unreachable!()
-			}
-		}
-		Value::Integer(left_integer) => {
-			if let Value::Integer(right_integer) = right {
-				left_integer == right_integer
-			} else {
-				unreachable!()
-			}
-		}
-		Value::String(left_string) => {
-			if let Value::String(right_string) = right {
-				left_string == right_string
-			} else {
-				unreachable!()
-			}
-		}
 	}
 }

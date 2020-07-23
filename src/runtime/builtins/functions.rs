@@ -1,6 +1,6 @@
 use super::super::function::Function;
 use super::super::sub_execution::SubExecution;
-use super::super::value::{Value, ValueType};
+use super::super::value::{compare_value, Value, ValueType};
 use std::path::PathBuf;
 
 macro_rules! define_function {
@@ -80,6 +80,15 @@ define_function!(IsExists(execution, argument_vec) => {
             }
             None => panic!("string is required")
         }
+    }
+});
+define_function!(Equals(execution, argument_vec) => {
+    if argument_vec.len() != 2 {
+        panic!("2 argument required, got {}.", argument_vec.len())
+    }
+
+    Value::Bool {
+        0: compare_value(&argument_vec[0], &argument_vec[1])
     }
 });
 define_function!(JoinPath(_execution, argument_vec) => {

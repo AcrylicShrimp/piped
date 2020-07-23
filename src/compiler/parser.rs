@@ -53,8 +53,7 @@ pub struct NonBlockAST {
 
 #[derive(Debug)]
 pub struct IfAST {
-    pub criteria_left: ExpressionAST,
-    pub criteria_right: ExpressionAST,
+    pub criteria: ExpressionAST,
     pub if_ast_vec: Vec<AST>,
     pub else_ast_vec: Option<Vec<AST>>,
 }
@@ -415,13 +414,8 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
 }
 
 fn parse_if(lexer: &mut Lexer) -> Result<IfAST, ()> {
-    let criteria_left = parse_expression(lexer)?;
-    next_token(lexer, TokenType::CompareEq)?;
-    let criteria_right = parse_expression(lexer)?;
-
     Ok(IfAST {
-        criteria_left,
-        criteria_right,
+        criteria: parse_expression(lexer)?,
         if_ast_vec: parse_block(lexer)?,
         else_ast_vec: None,
     })
