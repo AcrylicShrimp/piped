@@ -26,7 +26,7 @@ pub enum TokenType {
     LiteralInteger,  // 0123456789
     LiteralString,   // "..."
     KeywordImport,   // import
-    KeywordFrom,     // from
+    KeywordAs,       // as
     KeywordSet,      // set
     KeywordPrint,    // print
     KeywordPrintErr, // printErr
@@ -356,7 +356,7 @@ impl Lexer {
             "true" => return_token(TokenType::LiteralBool, content),
             "false" => return_token(TokenType::LiteralBool, content),
             "import" => return_token(TokenType::KeywordImport, content),
-            "from" => return_token(TokenType::KeywordFrom, content),
+            "as" => return_token(TokenType::KeywordAs, content),
             "set" => return_token(TokenType::KeywordSet, content),
             "print" => return_token(TokenType::KeywordPrint, content),
             "printErr" => return_token(TokenType::KeywordPrintErr, content),

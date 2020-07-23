@@ -190,11 +190,11 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                 }
             }
         } else if let ParserStatus::StatementImport = status {
-            let name_token = next_token(lexer, TokenType::Id)?;
-
-            next_token(lexer, TokenType::KeywordFrom)?;
-
             let expression_ast = parse_expression(lexer)?;
+
+            next_token(lexer, TokenType::KeywordAs)?;
+
+            let name_token = next_token(lexer, TokenType::Id)?;
 
             next_token(lexer, TokenType::Semicolon)?;
 
