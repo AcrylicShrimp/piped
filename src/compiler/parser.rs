@@ -741,19 +741,27 @@ fn print_last_line_of_token(lexer: &Lexer, token: &Token, message: &str) {
             width = max_line_number_width
         );
     }
-    println!(
-        "{:>width$} | {}",
-        token.line_number,
-        lexer.src_content()[token.line_number - 1],
-        width = max_line_number_width
-    );
+    if token.line_number <= lexer.src_content().len() {
+        println!(
+            "{:>width$} | {}",
+            token.line_number,
+            lexer.src_content()[token.line_number - 1],
+            width = max_line_number_width
+        );
+    } else {
+        println!(
+            "{:>width$} | ",
+            token.line_number,
+            width = max_line_number_width
+        );
+    }
     println!(
         "{}{} {}",
         &repeat(" ")
             .take(max_line_number_width + 3 + token.line_offset + begin_index - 1)
             .collect::<String>(),
         &repeat("^")
-            .take(actual_len - begin_index)
+            .take(max(1, actual_len - begin_index))
             .collect::<String>(),
         message
     );
