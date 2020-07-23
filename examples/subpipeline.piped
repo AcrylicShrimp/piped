@@ -1,3 +1,8 @@
 
 @print "hello from subpipeline!";
-@print value;
+
+@if is_exists("value") == true {
+	@print value;
+} @else {
+	@printErr "value required!";
+}

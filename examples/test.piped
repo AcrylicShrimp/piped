@@ -4,6 +4,8 @@
 subpipeline value="foo";
 subpipeline value="bar";
 subpipeline value="baz";
+subpipeline;
+subpipeline;
 
 @print "[\"01\", \"02\", \"03\"][0]=" get(["01", "02", "03"], 0);
 @print "[\"01\", \"02\", \"03\"][0]=" typeof(get(["01", "02", "03"], 0));
