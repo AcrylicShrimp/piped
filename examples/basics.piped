@@ -78,11 +78,11 @@ exec
 @await all;     // Waits for any previous background pipeline invokations
 
 // Conditional flow control
-@if hostOS == "linux" {
+@if equals(hostOS, "linux") {
     @print "hello, linux!";
-} @else if hostOS == "macos" {
+} @else if equals(hostOS, "macos") {
     @print "hello, macos!";
-} @else if hostOS == "windows" {
+} @else if equals(hostOS, "windows") {
     @print "hello, windows!";
 } @else {
     @print "hello, others!";
