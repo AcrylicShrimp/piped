@@ -1,9 +1,10 @@
 use super::super::function::Function;
+use super::super::sub_execution::SubExecution;
 use super::super::value::{Value, ValueType};
 use std::path::PathBuf;
 
 macro_rules! define_function {
-    ($name:ident ($arg:ident) => $body:block) => {
+    ($name:ident ($execution:ident, $arg:ident) => $body:block) => {
         pub struct $name {}
 
         impl $name {
@@ -13,12 +14,12 @@ macro_rules! define_function {
         }
 
         impl Function for $name {
-            fn call(&self, $arg: Vec<Value>) -> Value $body
+            fn call(&self, $execution: &mut SubExecution, $arg: Vec<Value>) -> Value $body
         }
     };
 }
 
-define_function!(Get(argument_vec) => {
+define_function!(Get(_execution, argument_vec) => {
     if argument_vec.len() != 2 {
         panic!("2 arguments required, got {}.", argument_vec.len())
     }
@@ -52,7 +53,7 @@ define_function!(Get(argument_vec) => {
          panic!("Type mismatch; only {:#?} or {:#?} can be used here.", ValueType::Array, ValueType::Dictionary)
     }
 });
-define_function!(Typeof(argument_vec) => {
+define_function!(Typeof(_execution, argument_vec) => {
     if argument_vec.len() != 1 {
         panic!("1 argument required, got {}.", argument_vec.len())
     }
@@ -67,7 +68,21 @@ define_function!(Typeof(argument_vec) => {
         }.to_owned()
     }
 });
-define_function!(JoinPath(argument_vec) => {
+define_function!(IsExists(execution, argument_vec) => {
+    if argument_vec.len() != 1 {
+        panic!("1 argument required, got {}.", argument_vec.len())
+    }
+
+    Value::Bool {
+        0: match argument_vec[0].to_strict::<String>() {
+            Some(string_value) => {
+                execution.get_variable(&string_value).is_some()
+            }
+            None => panic!("string is required")
+        }
+    }
+});
+define_function!(JoinPath(_execution, argument_vec) => {
     let mut path = PathBuf::new();
 
     for argument in argument_vec.into_iter() {

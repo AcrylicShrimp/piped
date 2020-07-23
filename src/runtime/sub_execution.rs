@@ -1,5 +1,5 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
-use super::builtins::functions::{Get, JoinPath, Typeof};
+use super::builtins::functions::{Get, IsExists, JoinPath, Typeof};
 use super::builtins::pipelines::Exec;
 use super::execution::Execution;
 use super::function::Function;
@@ -14,7 +14,6 @@ use std::thread::{spawn, JoinHandle};
 pub struct SubExecution {
 	execution: Arc<Execution>,
 	variable_map: HashMap<String, Value>,
-	function_map: HashMap<String, Box<dyn Function>>,
 	pipeline_factory_map: HashMap<String, Box<PipelineFactory>>,
 }
 
@@ -36,12 +35,6 @@ impl SubExecution {
 		#[cfg(target_os = "windows")]
 		variable_map.insert("hostOS".to_owned(), Value::String("windows".to_owned()));
 
-		let mut function_map: HashMap<_, Box<dyn Function>> = HashMap::new();
-
-		function_map.insert("get".to_owned(), Box::new(Get::new()));
-		function_map.insert("typeof".to_owned(), Box::new(Typeof::new()));
-		function_map.insert("join_path".to_owned(), Box::new(JoinPath::new()));
-
 		let mut pipeline_factory_map: HashMap<_, Box<PipelineFactory>> = HashMap::new();
 
 		pipeline_factory_map.insert("exec".to_owned(), Box::new(Exec::new));
@@ -49,9 +42,12 @@ impl SubExecution {
 		SubExecution {
 			execution,
 			variable_map,
-			function_map,
 			pipeline_factory_map,
 		}
+	}
+
+	pub fn get_variable(&self, name: &str) -> Option<&Value> {
+		self.variable_map.get(name)
 	}
 
 	pub fn set_variable(&mut self, name: String, value: Value) {
@@ -59,7 +55,15 @@ impl SubExecution {
 	}
 
 	pub fn execute(&mut self, pipeline: &ImportedPipeline) {
-		let (named_pipelines, unnamed_pipelines) = self.__execute(pipeline, pipeline.ast_vec());
+		let mut function_map: HashMap<_, Box<dyn Function>> = HashMap::new();
+
+		function_map.insert("get".to_owned(), Box::new(Get::new()));
+		function_map.insert("typeof".to_owned(), Box::new(Typeof::new()));
+		function_map.insert("is_exists".to_owned(), Box::new(IsExists::new()));
+		function_map.insert("join_path".to_owned(), Box::new(JoinPath::new()));
+
+		let (named_pipelines, unnamed_pipelines) =
+			self.__execute(&mut function_map, pipeline, pipeline.ast_vec());
 
 		for (_, pipeline) in named_pipelines.into_iter() {
 			for pipeline in pipeline {
@@ -74,6 +78,7 @@ impl SubExecution {
 
 	fn __execute(
 		&mut self,
+		function_map: &mut HashMap<String, Box<dyn Function>>,
 		pipeline: &ImportedPipeline,
 		ast_vec: &Vec<AST>,
 	) -> (
@@ -87,7 +92,9 @@ impl SubExecution {
 		for ast in ast_vec.iter() {
 			match ast {
 				AST::Import(import_ast) => {
-					if let Value::String(path) = self.expression_to_value(&import_ast.path) {
+					if let Value::String(path) =
+						self.expression_to_value(function_map, &import_ast.path)
+					{
 						let mut base_path = pipeline.path().clone();
 						base_path.pop();
 
@@ -126,19 +133,19 @@ impl SubExecution {
 					}
 				}
 				AST::Set(set_ast) => {
-					let value = self.expression_to_value(&set_ast.value);
+					let value = self.expression_to_value(function_map, &set_ast.value);
 					self.variable_map
 						.insert(set_ast.name.token_content.clone(), value);
 				}
 				AST::Print(print_ast) => {
 					for expression_ast in print_ast.expression_vec.iter() {
-						print!("{}", self.expression_to_value(expression_ast));
+						print!("{}", self.expression_to_value(function_map, expression_ast));
 					}
 					println!("");
 				}
 				AST::PrintErr(print_err_ast) => {
 					for expression_ast in print_err_ast.expression_vec.iter() {
-						eprint!("{}", self.expression_to_value(expression_ast));
+						eprint!("{}", self.expression_to_value(function_map, expression_ast));
 					}
 					eprintln!("");
 				}
@@ -177,7 +184,10 @@ impl SubExecution {
 						.argument_vec
 						.iter()
 						.map(|(key, value)| {
-							(key.token_content.clone(), self.expression_to_value(value))
+							(
+								key.token_content.clone(),
+								self.expression_to_value(function_map, value),
+							)
 						})
 						.collect();
 
@@ -211,11 +221,11 @@ impl SubExecution {
 				}
 				AST::If(if_ast) => {
 					if compare_value(
-						&self.expression_to_value(&if_ast.criteria_left),
-						&self.expression_to_value(&if_ast.criteria_right),
+						&self.expression_to_value(function_map, &if_ast.criteria_left),
+						&self.expression_to_value(function_map, &if_ast.criteria_right),
 					) {
 						let (named_pipelines, unnamed_pipelines) =
-							self.__execute(pipeline, &if_ast.if_ast_vec);
+							self.__execute(function_map, pipeline, &if_ast.if_ast_vec);
 
 						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
 							match named_pipeline_map.get_mut(&pipeline_name) {
@@ -231,7 +241,7 @@ impl SubExecution {
 						unnamed_pipeline_vec.extend(unnamed_pipelines);
 					} else if let Some(else_ast) = &if_ast.else_ast_vec {
 						let (named_pipelines, unnamed_pipelines) =
-							self.__execute(pipeline, else_ast);
+							self.__execute(function_map, pipeline, else_ast);
 
 						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
 							match named_pipeline_map.get_mut(&pipeline_name) {
@@ -252,7 +262,10 @@ impl SubExecution {
 						.argument_vec
 						.iter()
 						.map(|(key, value)| {
-							(key.token_content.clone(), self.expression_to_value(value))
+							(
+								key.token_content.clone(),
+								self.expression_to_value(function_map, value),
+							)
 						})
 						.collect();
 
@@ -273,12 +286,12 @@ impl SubExecution {
 					let argument_expression_vec = call_ast
 						.argument_vec
 						.iter()
-						.map(|expression| self.expression_to_value(expression))
+						.map(|expression| self.expression_to_value(function_map, expression))
 						.collect();
 
-					match self.function_map.get_mut(&call_ast.name.token_content) {
+					match function_map.get_mut(&call_ast.name.token_content) {
 						Some(function) => {
-							function.call(argument_expression_vec);
+							function.call(self, argument_expression_vec);
 						}
 						None => {
 							panic!("undefined function '{}' used", &call_ast.name.token_content)
@@ -291,18 +304,27 @@ impl SubExecution {
 		(named_pipeline_map, unnamed_pipeline_vec)
 	}
 
-	fn expression_to_value(&mut self, expression_ast: &ExpressionAST) -> Value {
+	fn expression_to_value(
+		&mut self,
+		function_map: &mut HashMap<String, Box<dyn Function>>,
+		expression_ast: &ExpressionAST,
+	) -> Value {
 		match expression_ast {
 			ExpressionAST::Array(array) => Value::Array(
 				array
 					.iter()
-					.map(|element| self.expression_to_value(element))
+					.map(|element| self.expression_to_value(function_map, element))
 					.collect(),
 			),
 			ExpressionAST::Dictionary(dictionary) => Value::Dictionary(
 				dictionary
 					.iter()
-					.map(|(key, value)| (key.clone(), self.expression_to_value(&value.1)))
+					.map(|(key, value)| {
+						(
+							key.clone(),
+							self.expression_to_value(function_map, &value.1),
+						)
+					})
 					.collect(),
 			),
 			ExpressionAST::Literal(literal_ast) => literal_to_value(literal_ast),
@@ -314,11 +336,11 @@ impl SubExecution {
 				let argument_expression_vec = call_ast
 					.argument_vec
 					.iter()
-					.map(|expression| self.expression_to_value(expression))
+					.map(|expression| self.expression_to_value(function_map, expression))
 					.collect();
 
-				match self.function_map.get_mut(&call_ast.name.token_content) {
-					Some(function) => function.call(argument_expression_vec),
+				match function_map.get_mut(&call_ast.name.token_content) {
+					Some(function) => function.call(self, argument_expression_vec),
 					None => panic!("undefined function '{}' used", &call_ast.name.token_content),
 				}
 			}
