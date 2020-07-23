@@ -82,7 +82,7 @@ define_function!(IsExists(execution, argument_vec) => {
         }
     }
 });
-define_function!(Equals(execution, argument_vec) => {
+define_function!(Equals(_execution, argument_vec) => {
     if argument_vec.len() != 2 {
         panic!("2 argument required, got {}.", argument_vec.len())
     }
