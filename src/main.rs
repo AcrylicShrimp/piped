@@ -2,10 +2,9 @@ mod compiler;
 mod runtime;
 
 use clap::{App, Arg};
-use compiler::lookahead_lexer::LookaheadLexer as Lexer;
-use compiler::parser::parse;
-use runtime::context::Context;
-use std::fs::read_to_string;
+use runtime::execution::Execution;
+use runtime::imported_pipeline::ImportedPipeline;
+use std::path::PathBuf;
 use std::process::exit;
 
 fn main() {
@@ -21,24 +20,15 @@ fn main() {
         .get_matches();
 
     let input = matches.values_of("input").unwrap().last().unwrap();
-
-    let mut lexer = Lexer::new(
-        input.to_owned(),
-        match read_to_string(input) {
-            Ok(content) => content,
-            Err(err) => {
-                eprintln!("Unable to open the given path: {}", input);
-                eprintln!("\tbecause: {}", err);
-                eprintln!("\texiting.");
-                exit(-1);
-            }
-        },
-    );
-
-    match parse(&mut lexer) {
-        Ok(ast_vec) => {
-            Context::new().execute(&ast_vec);
+    let entry_pipeline = match ImportedPipeline::import(&PathBuf::from(input)) {
+        Ok(pipeline) => pipeline,
+        Err(err) => {
+            eprintln!("Unable to read the given path: {}", input);
+            eprintln!("\tbecause: {}", err);
+            eprintln!("\texiting.");
+            exit(-1);
         }
-        Err(()) => exit(-2),
-    }
+    };
+
+    Execution::new().execute(entry_pipeline);
 }

@@ -1,10 +1,12 @@
 use super::lexer::{LexerError, Token, TokenType};
 use super::lookahead_lexer::LookaheadLexer as Lexer;
+use std::cmp::max;
 use std::collections::HashMap;
 use std::iter::repeat;
 
 #[derive(Debug)]
 pub enum AST {
+    Import(ImportAST),
     Set(SetAST),
     Print(PrintAST),
     PrintErr(PrintErrAST),
@@ -14,6 +16,12 @@ pub enum AST {
     If(IfAST),
     Pipeline(PipelineAST),
     Call(CallAST),
+}
+
+#[derive(Debug)]
+pub struct ImportAST {
+    pub name: Token,
+    pub path: ExpressionAST,
 }
 
 #[derive(Debug)]
@@ -82,6 +90,7 @@ pub struct CallAST {
 enum ParserStatus {
     TopLevel,
     Statement,
+    StatementImport,
     StatementSet,
     StatementPrint,
     StatementPrintErr,
@@ -143,6 +152,10 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
             let statement_token = next(lexer)?;
 
             match statement_token.token_type {
+                TokenType::KeywordImport => {
+                    status = ParserStatus::StatementImport;
+                    continue 'parse;
+                }
                 TokenType::KeywordSet => {
                     status = ParserStatus::StatementSet;
                     continue 'parse;
@@ -171,11 +184,28 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "A 'set', 'print', 'printErr', 'await', 'nonblock' and 'if' keyword only can be used here.",
+                        "A 'import', 'set', 'print', 'printErr', 'await', 'nonblock' and 'if' keyword only can be used here.",
                     );
                     return Err(());
                 }
             }
+        } else if let ParserStatus::StatementImport = status {
+            let name_token = next_token(lexer, TokenType::Id)?;
+
+            next_token(lexer, TokenType::KeywordFrom)?;
+
+            let expression_ast = parse_expression(lexer)?;
+
+            next_token(lexer, TokenType::Semicolon)?;
+
+            ast_vec.push(AST::Import {
+                0: ImportAST {
+                    name: name_token,
+                    path: expression_ast,
+                },
+            });
+
+            return Ok(ast_vec);
         } else if let ParserStatus::StatementSet = status {
             let name_token = next_token(lexer, TokenType::Id)?;
 
@@ -294,6 +324,11 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
             let statement_token = next(lexer)?;
 
             match statement_token.token_type {
+                TokenType::KeywordImport => {
+                    ast_vec.push(AST::If(if_ast));
+                    status = ParserStatus::StatementImport;
+                    continue 'parse;
+                }
                 TokenType::KeywordSet => {
                     ast_vec.push(AST::If(if_ast));
                     status = ParserStatus::StatementSet;
@@ -332,7 +367,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "A 'set', 'print', 'printErr', 'await', 'nonblock', 'if' and 'else' keyword only can be used here.",
+                        "A 'import', 'set', 'print', 'printErr', 'await', 'nonblock', 'if' and 'else' keyword only can be used here.",
                     );
                     return Err(());
                 }

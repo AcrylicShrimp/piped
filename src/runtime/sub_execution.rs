@@ -1,20 +1,25 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
 use super::builtins::functions::{Get, JoinPath, Typeof};
 use super::builtins::pipelines::Exec;
+use super::execution::Execution;
 use super::function::Function;
+use super::imported_pipeline::ImportedPipeline;
 use super::pipeline::{PipelineExecutionResult, PipelineFactory};
 use super::value::Value;
 use std::collections::HashMap;
+use std::path::Path;
+use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 
-pub struct Context {
+pub struct SubExecution {
+	execution: Arc<Execution>,
 	variable_map: HashMap<String, Value>,
 	function_map: HashMap<String, Box<dyn Function>>,
 	pipeline_factory_map: HashMap<String, Box<PipelineFactory>>,
 }
 
-impl Context {
-	pub fn new() -> Context {
+impl SubExecution {
+	pub fn new(execution: Arc<Execution>) -> SubExecution {
 		let mut variable_map = HashMap::new();
 
 		#[cfg(target_arch = "x86")]
@@ -31,10 +36,6 @@ impl Context {
 		#[cfg(target_os = "windows")]
 		variable_map.insert("hostOS".to_owned(), Value::String("windows".to_owned()));
 
-		variable_map.insert("lastExecExitCode".to_owned(), Value::Integer(0));
-		variable_map.insert("lastExecStdOut".to_owned(), Value::String("".to_owned()));
-		variable_map.insert("lastExecStdErr".to_owned(), Value::String("".to_owned()));
-
 		let mut function_map: HashMap<_, Box<dyn Function>> = HashMap::new();
 
 		function_map.insert("get".to_owned(), Box::new(Get::new()));
@@ -45,15 +46,20 @@ impl Context {
 
 		pipeline_factory_map.insert("exec".to_owned(), Box::new(Exec::new));
 
-		Context {
+		SubExecution {
+			execution,
 			variable_map,
 			function_map,
 			pipeline_factory_map,
 		}
 	}
 
-	pub fn execute(&mut self, ast_vec: &Vec<AST>) {
-		let (named_pipelines, unnamed_pipelines) = self.__execute(ast_vec);
+	pub fn set_variable(&mut self, name: String, value: Value) {
+		self.variable_map.insert(name, value);
+	}
+
+	pub fn execute(&mut self, pipeline: &ImportedPipeline) {
+		let (named_pipelines, unnamed_pipelines) = self.__execute(pipeline, pipeline.ast_vec());
 
 		for (_, pipeline) in named_pipelines.into_iter() {
 			for pipeline in pipeline {
@@ -68,6 +74,7 @@ impl Context {
 
 	fn __execute(
 		&mut self,
+		pipeline: &ImportedPipeline,
 		ast_vec: &Vec<AST>,
 	) -> (
 		HashMap<String, Vec<JoinHandle<PipelineExecutionResult>>>,
@@ -79,6 +86,45 @@ impl Context {
 
 		for ast in ast_vec.iter() {
 			match ast {
+				AST::Import(import_ast) => {
+					if let Value::String(path) = self.expression_to_value(&import_ast.path) {
+						let mut base_path = pipeline.path().clone();
+						base_path.pop();
+
+						match self.execution.import(base_path.join(Path::new(&path))) {
+							Ok(imported_pipeline) => {
+								let execution = self.execution.clone();
+
+								self.pipeline_factory_map.insert(
+									import_ast.name.token_content.clone(),
+									Box::new(move |argument_map| {
+										let variable_map = argument_map.clone();
+										let imported_pipeline = imported_pipeline.clone();
+										let execution = execution.clone();
+
+										Box::new(move || {
+											let mut sub_execution =
+												SubExecution::new(execution.clone());
+
+											for (name, value) in variable_map.iter() {
+												sub_execution
+													.set_variable(name.clone(), value.clone());
+											}
+
+											sub_execution.execute(&imported_pipeline);
+											PipelineExecutionResult { success: true }
+										})
+									}),
+								);
+							}
+							Err(err) => {
+								panic!("unable to import pipeline: {}", err);
+							}
+						}
+					} else {
+						panic!("path must be a string type",)
+					}
+				}
 				AST::Set(set_ast) => {
 					let value = self.expression_to_value(&set_ast.value);
 					self.variable_map
@@ -169,7 +215,7 @@ impl Context {
 						&self.expression_to_value(&if_ast.criteria_right),
 					) {
 						let (named_pipelines, unnamed_pipelines) =
-							self.__execute(&if_ast.if_ast_vec);
+							self.__execute(pipeline, &if_ast.if_ast_vec);
 
 						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
 							match named_pipeline_map.get_mut(&pipeline_name) {
@@ -184,7 +230,8 @@ impl Context {
 
 						unnamed_pipeline_vec.extend(unnamed_pipelines);
 					} else if let Some(else_ast) = &if_ast.else_ast_vec {
-						let (named_pipelines, unnamed_pipelines) = self.__execute(else_ast);
+						let (named_pipelines, unnamed_pipelines) =
+							self.__execute(pipeline, else_ast);
 
 						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
 							match named_pipeline_map.get_mut(&pipeline_name) {
