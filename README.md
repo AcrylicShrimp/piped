@@ -116,6 +116,8 @@ Use `await` to wait for background invocations. There are 3 different types to d
 
 Any pipelines can be imported by `import` statements.
 
+Documentations for all built-in pipelines are [here](docs/built-in-pipelines.md).
+
 #### If statements
 
 `if` statements are quite typical.
@@ -142,6 +144,4 @@ some_function(1, 2, 3);
 
 Unlike pipeline invocations, functions have positional parameters. It means position of each arguments are important.
 
-### Built-ins
-
-See [here](docs/built-ins.md).
+Documentations for all functions are [here](docs/built-in-functions.md).
