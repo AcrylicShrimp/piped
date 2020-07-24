@@ -169,6 +169,12 @@ impl Lexer {
 
         let mut integer = "".to_string();
 
+        let sign = self.next_character(AdvanceMode::NoAdvance);
+
+        if sign == '+' || sign == '-' {
+            integer.push(self.next_character(AdvanceMode::Post));
+        }
+
         while self.next_character(AdvanceMode::NoAdvance).is_digit(10) {
             integer.push(self.next_character(AdvanceMode::Post));
         }
@@ -269,7 +275,7 @@ impl Lexer {
                 self.next_character(AdvanceMode::Pre);
                 return return_token(TokenType::Equal, blackspace.to_string());
             }
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+            '+' | '-' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
                 match self.parse_integer() {
                     Some(token) => {
                         return Ok(token);
