@@ -114,7 +114,23 @@ Use `await` to wait for background invocations. There are 3 different types to d
 
 ##### Importing pipelines
 
-Any pipelines can be imported by `import` statements.
+Any pipelines can be imported by `import` statements. It is an error if a pipeline is imported more than once. You have to specify its name when importing.
+
+```
+@import "./sub-pipeline.piped" as sub_pipeline;
+```
+
+When you invoke a imported pipeline, any arguments you fed will be injected into that pipeline as variables. You can check if pipeline invocations have needed arguments when writing pipelines with functions.
+
+```
+// pipeline.piped
+sub_pipeline some_parameter="some_argument";
+
+// sub-pipeline.piped
+@if is_exists("some_parameter") {
+	// Do some logics
+}
+```
 
 Documentations for all built-in pipelines are [here](docs/built-in-pipelines.md).
 

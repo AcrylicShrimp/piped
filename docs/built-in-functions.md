@@ -33,6 +33,69 @@ If `array_or_dict` is an array, it returns `index`th element of the `array_or_di
 
 If `array_or_dict` is an dictionary, it returns an item marked as `index` as a key. The `index` should be a string. The `piped` will be panic if the `array_or_dict` not contains `index` as a key.
 
+#### Example
+
+```
+@print get([1, 2, 3], -1);		// 3
+```
+
+---
+
+### `equals(lhs, rhs)`
+
+#### Summary
+
+Checks if given values are equal.
+
+#### Parameters
+
+- `lhs`: An left side value to be tested.
+- `rhs`: An right side value to be tested.
+
+#### Return value
+
+`true` if two given values are equal. `false` otherwise.
+
+#### Description
+
+It first tests the types of the values. After, it checks lengths of the values if the `lhs` and the `rhs` are array or dictionary. The order of items is irrelevant if they are dictionary. If they are bool, integer or string, it tries to match their values directly.
+
+#### Example
+
+```
+@print equals([], "");														// false
+@print equals({foo: "value", bar: true}, {bar: true, foo: "value"});		// true
+```
+
+---
+
+### `is_exists(variable_name)`
+
+#### Summary
+
+Checks there is a variable with the given name.
+
+#### Parameters
+
+- `variable_name`: A name of a variable.
+
+#### Return value
+
+`true` if there is a variable with the given name `variable_name`. `false` otherwise.
+
+#### Description
+
+It returns `true` if there is a variable with the given name `variable_name` in this execution context. It returns `false` if not. It is useful when you are writing custom pipelines that requires some arguments as parameter.
+
+#### Example
+
+```
+@set foo="hello, world!";
+
+@print is_exists("foo");		// true
+@print is_exists("bar");		// false
+```
+
 ---
 
 ### `typeof(value)`
@@ -60,3 +123,11 @@ This function returns one of the type name that the `value` has.
 | `Bool`              | bool         |
 | `Integer`           | integer      |
 | `String`            | string       |
+
+#### Example
+
+```
+@print typeof(["a"]);		// array
+@print typeof(-1);			// integer
+@print typeof("hello!");	// string
+```
