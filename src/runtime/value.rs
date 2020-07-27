@@ -26,12 +26,10 @@ pub trait FromValue: Sized {
 impl<T: FromValue> FromValue for Vec<T> {
 	fn from_value(value: &Value) -> Option<Self> {
 		match value {
-			Value::Array(value_vec) => Some(
-				value_vec
-					.iter()
-					.map(|element| element.to_strict::<T>().unwrap())
-					.collect(),
-			),
+			Value::Array(value_vec) => value_vec
+				.iter()
+				.map(|element| element.to_strict::<T>())
+				.collect::<Option<Vec<_>>>(),
 			_ => None,
 		}
 	}
@@ -40,12 +38,13 @@ impl<T: FromValue> FromValue for Vec<T> {
 impl<T: FromValue> FromValue for HashMap<String, T> {
 	fn from_value(value: &Value) -> Option<Self> {
 		match value {
-			Value::Dictionary(value_map) => Some(
-				value_map
-					.iter()
-					.map(|pair| (pair.0.clone(), pair.1.to_strict::<T>().unwrap()))
-					.collect(),
-			),
+			Value::Dictionary(value_map) => value_map
+				.iter()
+				.map(|(key, value)| match value.to_strict::<T>() {
+					Some(value) => Some((key.clone(), value)),
+					None => None,
+				})
+				.collect::<Option<HashMap<_, _>>>(),
 			_ => None,
 		}
 	}
