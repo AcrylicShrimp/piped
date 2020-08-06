@@ -78,7 +78,7 @@ impl SubExecution {
 		);
 
 		let (named_pipelines, unnamed_pipelines) =
-			self.__execute(&mut function_map, pipeline, pipeline.ast_vec());
+			self.__execute(&function_map, pipeline, pipeline.ast_vec());
 
 		for (_, pipeline) in named_pipelines.into_iter() {
 			for pipeline in pipeline {
@@ -93,7 +93,7 @@ impl SubExecution {
 
 	fn __execute(
 		&mut self,
-		function_map: &mut HashMap<String, Box<dyn Function>>,
+		function_map: &HashMap<String, Box<dyn Function>>,
 		pipeline: &ImportedPipeline,
 		ast_vec: &Vec<AST>,
 	) -> (
@@ -307,7 +307,7 @@ impl SubExecution {
 						.map(|expression| self.expression_to_value(function_map, expression))
 						.collect();
 
-					match function_map.get_mut(&call_ast.name.token_content) {
+					match function_map.get(&call_ast.name.token_content) {
 						Some(function) => {
 							function.call(self, argument_expression_vec);
 						}
@@ -324,7 +324,7 @@ impl SubExecution {
 
 	fn expression_to_value(
 		&mut self,
-		function_map: &mut HashMap<String, Box<dyn Function>>,
+		function_map: &HashMap<String, Box<dyn Function>>,
 		expression_ast: &ExpressionAST,
 	) -> Value {
 		match expression_ast {
@@ -357,7 +357,7 @@ impl SubExecution {
 					.map(|expression| self.expression_to_value(function_map, expression))
 					.collect();
 
-				match function_map.get_mut(&call_ast.name.token_content) {
+				match function_map.get(&call_ast.name.token_content) {
 					Some(function) => function.call(self, argument_expression_vec),
 					None => panic!("undefined function '{}' used", &call_ast.name.token_content),
 				}
