@@ -1,5 +1,7 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
-use super::builtins::functions::{Equals, Get, IsExists, JoinPath, Typeof};
+use super::builtins::functions::{
+	function_equals, function_get, function_is_exists, function_join_path, function_typeof,
+};
 use super::builtins::pipelines::Exec;
 use super::execution::Execution;
 use super::function::Function;
@@ -57,11 +59,23 @@ impl SubExecution {
 	pub fn execute(&mut self, pipeline: &ImportedPipeline) {
 		let mut function_map: HashMap<_, Box<dyn Function>> = HashMap::new();
 
-		function_map.insert("get".to_owned(), Box::new(Get::new()));
-		function_map.insert("typeof".to_owned(), Box::new(Typeof::new()));
-		function_map.insert("is_exists".to_owned(), Box::new(IsExists::new()));
-		function_map.insert("equals".to_owned(), Box::new(Equals::new()));
-		function_map.insert("join_path".to_owned(), Box::new(JoinPath::new()));
+		function_map.insert("get".to_owned(), Box::new(function_get::Get::new()));
+		function_map.insert(
+			"typeof".to_owned(),
+			Box::new(function_typeof::Typeof::new()),
+		);
+		function_map.insert(
+			"is_exists".to_owned(),
+			Box::new(function_is_exists::IsExists::new()),
+		);
+		function_map.insert(
+			"equals".to_owned(),
+			Box::new(function_equals::Equals::new()),
+		);
+		function_map.insert(
+			"join_path".to_owned(),
+			Box::new(function_join_path::JoinPath::new()),
+		);
 
 		let (named_pipelines, unnamed_pipelines) =
 			self.__execute(&mut function_map, pipeline, pipeline.ast_vec());
