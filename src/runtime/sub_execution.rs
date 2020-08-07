@@ -1,5 +1,5 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
-use super::builtins::pipelines::Exec;
+use super::builtins::pipelines::pipeline::build_pipeline_map;
 use super::execution::Execution;
 use super::function::Function;
 use super::imported_pipeline::ImportedPipeline;
@@ -34,14 +34,10 @@ impl SubExecution {
 		#[cfg(target_os = "windows")]
 		variable_map.insert("hostOS".to_owned(), Value::String("windows".to_owned()));
 
-		let mut pipeline_factory_map: HashMap<_, Box<PipelineFactory>> = HashMap::new();
-
-		pipeline_factory_map.insert("exec".to_owned(), Box::new(Exec::new));
-
 		SubExecution {
 			execution,
 			variable_map,
-			pipeline_factory_map,
+			pipeline_factory_map: build_pipeline_map(),
 		}
 	}
 
