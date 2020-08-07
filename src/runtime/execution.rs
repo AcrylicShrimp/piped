@@ -1,3 +1,4 @@
+use super::builtins::functions::function::build_function_map;
 use super::imported_pipeline::ImportedPipeline;
 use super::sub_execution::SubExecution;
 use std::collections::HashMap;
@@ -22,7 +23,7 @@ impl Execution {
 		(*execution.imported_pipeline_map.lock().unwrap())
 			.insert(entry_pipeline.path().clone(), entry_pipeline.clone());
 
-		SubExecution::new(execution).execute(&entry_pipeline);
+		SubExecution::new(execution).execute(&Arc::new(build_function_map()), &entry_pipeline);
 	}
 
 	pub fn import(&self, path: PathBuf) -> Result<Arc<ImportedPipeline>, String> {

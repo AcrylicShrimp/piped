@@ -1,7 +1,4 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
-use super::builtins::functions::{
-	function_equals, function_get, function_is_exists, function_join_path, function_typeof,
-};
 use super::builtins::pipelines::Exec;
 use super::execution::Execution;
 use super::function::Function;
@@ -56,27 +53,11 @@ impl SubExecution {
 		self.variable_map.insert(name, value);
 	}
 
-	pub fn execute(&mut self, pipeline: &ImportedPipeline) {
-		let mut function_map: HashMap<_, Box<dyn Function>> = HashMap::new();
-
-		function_map.insert("get".to_owned(), Box::new(function_get::Get::new()));
-		function_map.insert(
-			"typeof".to_owned(),
-			Box::new(function_typeof::Typeof::new()),
-		);
-		function_map.insert(
-			"is_exists".to_owned(),
-			Box::new(function_is_exists::IsExists::new()),
-		);
-		function_map.insert(
-			"equals".to_owned(),
-			Box::new(function_equals::Equals::new()),
-		);
-		function_map.insert(
-			"join_path".to_owned(),
-			Box::new(function_join_path::JoinPath::new()),
-		);
-
+	pub fn execute(
+		&mut self,
+		function_map: &Arc<HashMap<String, Box<dyn Function + Sync + Send>>>,
+		pipeline: &ImportedPipeline,
+	) {
 		let (named_pipelines, unnamed_pipelines) =
 			self.__execute(&function_map, pipeline, pipeline.ast_vec());
 
@@ -93,7 +74,7 @@ impl SubExecution {
 
 	fn __execute(
 		&mut self,
-		function_map: &HashMap<String, Box<dyn Function>>,
+		function_map: &Arc<HashMap<String, Box<dyn Function + Sync + Send>>>,
 		pipeline: &ImportedPipeline,
 		ast_vec: &Vec<AST>,
 	) -> (
@@ -115,11 +96,13 @@ impl SubExecution {
 
 						match self.execution.import(base_path.join(Path::new(&path))) {
 							Ok(imported_pipeline) => {
+								let function_map = function_map.clone();
 								let execution = self.execution.clone();
 
 								self.pipeline_factory_map.insert(
 									import_ast.name.token_content.clone(),
 									Box::new(move |argument_map| {
+										let function_map = function_map.clone();
 										let variable_map = argument_map.clone();
 										let imported_pipeline = imported_pipeline.clone();
 										let execution = execution.clone();
@@ -133,7 +116,8 @@ impl SubExecution {
 													.set_variable(name.clone(), value.clone());
 											}
 
-											sub_execution.execute(&imported_pipeline);
+											sub_execution
+												.execute(&function_map, &imported_pipeline);
 											PipelineExecutionResult { success: true }
 										})
 									}),
@@ -324,7 +308,7 @@ impl SubExecution {
 
 	fn expression_to_value(
 		&mut self,
-		function_map: &HashMap<String, Box<dyn Function>>,
+		function_map: &Arc<HashMap<String, Box<dyn Function + Sync + Send>>>,
 		expression_ast: &ExpressionAST,
 	) -> Value {
 		match expression_ast {
