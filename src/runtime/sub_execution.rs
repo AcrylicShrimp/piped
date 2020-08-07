@@ -1,5 +1,6 @@
 use super::super::compiler::parser::{ExpressionAST, LiteralAST, AST};
 use super::builtins::pipelines::pipeline::build_pipeline_map;
+use super::builtins::variables::variable::build_variable_map;
 use super::execution::Execution;
 use super::function::Function;
 use super::imported_pipeline::ImportedPipeline;
@@ -18,25 +19,9 @@ pub struct SubExecution {
 
 impl SubExecution {
 	pub fn new(execution: Arc<Execution>) -> SubExecution {
-		let mut variable_map = HashMap::new();
-
-		#[cfg(target_arch = "x86")]
-		variable_map.insert("hostArch".to_owned(), Value::String("x86".to_owned()));
-		#[cfg(target_arch = "x86_64")]
-		variable_map.insert("hostArch".to_owned(), Value::String("x86_64".to_owned()));
-		#[cfg(target_arch = "arm")]
-		variable_map.insert("hostArch".to_owned(), Value::String("arm".to_owned()));
-
-		#[cfg(target_os = "linux")]
-		variable_map.insert("hostOS".to_owned(), Value::String("linux".to_owned()));
-		#[cfg(target_os = "macos")]
-		variable_map.insert("hostOS".to_owned(), Value::String("macos".to_owned()));
-		#[cfg(target_os = "windows")]
-		variable_map.insert("hostOS".to_owned(), Value::String("windows".to_owned()));
-
 		SubExecution {
 			execution,
-			variable_map,
+			variable_map: build_variable_map(),
 			pipeline_factory_map: build_pipeline_map(),
 		}
 	}
