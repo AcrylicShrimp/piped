@@ -98,6 +98,32 @@ It returns `true` if there is a variable with the given name `variable_name` in 
 
 ---
 
+### `len(array_or_dict)`
+
+#### Summary
+
+Get length of the given array or dictionary.
+
+#### Parameters
+
+- `array_or_dict`: An array or a dictionary value to be counted.
+
+#### Return value
+
+An number of items of the given array of the `array_or_dict`.
+
+#### Description
+
+This function counts and returns a number of items that the given `array_or_dict` holds. The `array_or_dict` should be one of a array or dictionary.
+
+#### Example
+
+```
+@print len([0, 1, 2]);		// 3
+```
+
+---
+
 ### `typeof(value)`
 
 #### Summary
