@@ -1,6 +1,4 @@
-use super::super::super::function::Function;
-use super::super::super::sub_execution::SubExecution;
-use super::super::super::value::{compare_value, Value};
+use super::super::super::value::compare_value;
 
 define_function!(Equals(_execution, argument_vec) => {
 	if argument_vec.len() != 2 {

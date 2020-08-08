@@ -1,6 +1,4 @@
-use super::super::super::function::Function;
-use super::super::super::sub_execution::SubExecution;
-use super::super::super::value::{Value, ValueType};
+use super::super::super::value::ValueType;
 
 define_function!(Typeof(_execution, argument_vec) => {
 	if argument_vec.len() != 1 {

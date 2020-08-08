@@ -6,6 +6,10 @@ use std::collections::HashMap;
 
 macro_rules! define_function {
     ($name:ident ($execution:ident, $arg:ident) => $body:block) => {
+        use super::super::super::function::Function;
+        use super::super::super::sub_execution::SubExecution;
+        use super::super::super::value::Value;
+
         pub struct $name {}
 
         impl $name {
