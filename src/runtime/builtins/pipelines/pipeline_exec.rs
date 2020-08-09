@@ -21,11 +21,27 @@ define_pipeline!(Exec, argument_map => {
 		},
 		None => vec![],
 	};
+	let envs = match argument_map.get("envs") {
+		Some(envs) => match envs.to_strict::<HashMap<String, String>>() {
+			Some(envs) => envs,
+			None => panic!(
+				"'{}' must be a '{:#?}' of '{:#?}' type",
+				"env",
+				ValueType::Dictionary,
+				ValueType::String
+			),
+		},
+		None => vec![],
+	};
 
 	let mut command = Command::new(cmd);
 
 	if !params.is_empty() {
 		command.args(params);
+	}
+
+	if !envs.is_empty() {
+		command.envs(envs);
 	}
 
 	Box::new(move || -> PipelineExecutionResult {
