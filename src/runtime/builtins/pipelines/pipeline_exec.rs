@@ -31,7 +31,7 @@ define_pipeline!(Exec, argument_map => {
 				ValueType::String
 			),
 		},
-		None => vec![],
+		None => HashMap::new(),
 	};
 
 	let mut command = Command::new(cmd);
