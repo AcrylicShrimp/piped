@@ -6,6 +6,33 @@ In this document we're going to describe all functions.
 
 ---
 
+### `contains(dict, key)`
+
+#### Summary
+
+Checks whether the given dictionary contains the given key or not.
+
+#### Parameters
+
+- `dict`: A dictionary to be tested.
+- `key`: A string key value.
+
+#### Return value
+
+A `true` if the `dict` contains a key `key`. `false` otherwise.
+
+#### Description
+
+This function tests and returns `true` if the given `dict` contains `key` as a key. It returns `false` otherwise.
+
+#### Example
+
+```
+@print contains({ key: "value" }, "key");		// true
+```
+
+---
+
 ### `get(array_or_dict, index)`
 
 #### Summary
