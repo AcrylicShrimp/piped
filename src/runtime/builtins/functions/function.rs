@@ -1,7 +1,7 @@
 use super::super::super::function::Function;
 use super::{
-    function_equals, function_get, function_is_exists, function_join_path, function_len,
-    function_typeof,
+    function_contains, function_equals, function_get, function_is_exists, function_join_path,
+    function_len, function_typeof,
 };
 use std::collections::HashMap;
 
@@ -34,6 +34,7 @@ macro_rules! insert_function {
 pub fn build_function_map() -> HashMap<String, Box<dyn Function + Send + Sync>> {
     let mut function_map: HashMap<_, Box<dyn Function + Send + Sync>> = HashMap::new();
 
+    insert_function!(function_contains::Contains, "contains" >>> function_map);
     insert_function!(function_equals::Equals, "equals" >>> function_map);
     insert_function!(function_get::Get, "get" >>> function_map);
     insert_function!(function_is_exists::IsExists, "is_exists" >>> function_map);
