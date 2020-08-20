@@ -30,6 +30,7 @@ pub enum TokenType {
     KeywordPrint,    // print
     KeywordPrintErr, // printErr
     KeywordReturn,   // return
+    KeywordResult,   // result
     KeywordNonBlock, // nonblock
     KeywordAwait,    // await
     KeywordAll,      // all
@@ -362,6 +363,7 @@ impl Lexer {
             "print" => return_token(TokenType::KeywordPrint, content),
             "printErr" => return_token(TokenType::KeywordPrintErr, content),
             "return" => return_token(TokenType::KeywordReturn, content),
+            "result" => return_token(TokenType::KeywordResult, content),
             "nonblock" => return_token(TokenType::KeywordNonBlock, content),
             "await" => return_token(TokenType::KeywordAwait, content),
             "all" => return_token(TokenType::KeywordAll, content),

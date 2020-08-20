@@ -44,12 +44,12 @@ impl SubExecution {
 
 		for (_, pipeline) in named_pipelines.into_iter() {
 			for pipeline in pipeline {
-				pipeline.join().unwrap();
+				pipeline.1.join().unwrap();
 			}
 		}
 
 		for pipeline in unnamed_pipelines {
-			pipeline.join().unwrap();
+			pipeline.1.join().unwrap();
 		}
 
 		match return_value {
@@ -71,12 +71,15 @@ impl SubExecution {
 		ast_vec: &Vec<AST>,
 	) -> (
 		Option<Option<Value>>,
-		HashMap<String, Vec<JoinHandle<PipelineExecutionResult>>>,
-		Vec<JoinHandle<PipelineExecutionResult>>,
+		HashMap<String, Vec<(Option<String>, JoinHandle<PipelineExecutionResult>)>>,
+		Vec<(Option<String>, JoinHandle<PipelineExecutionResult>)>,
 	) {
-		let mut named_pipeline_map: HashMap<String, Vec<JoinHandle<PipelineExecutionResult>>> =
-			HashMap::new();
-		let mut unnamed_pipeline_vec: Vec<JoinHandle<PipelineExecutionResult>> = Vec::new();
+		let mut named_pipeline_map: HashMap<
+			String,
+			Vec<(Option<String>, JoinHandle<PipelineExecutionResult>)>,
+		> = HashMap::new();
+		let mut unnamed_pipeline_vec: Vec<(Option<String>, JoinHandle<PipelineExecutionResult>)> =
+			Vec::new();
 
 		for ast in ast_vec.iter() {
 			match ast {
@@ -159,14 +162,34 @@ impl SubExecution {
 					Some(name) => match named_pipeline_map.remove(&name.token_content) {
 						Some(named_pipeline_vec) => {
 							for named_pipeline in named_pipeline_vec {
-								named_pipeline.join().unwrap();
+								let result = named_pipeline.1.join().unwrap();
+
+								match named_pipeline.0 {
+									Some(result_as) => match result.result {
+										Some(result) => {
+											self.variable_map.insert(result_as, result);
+										}
+										None => (),
+									},
+									None => (),
+								}
 							}
 						}
 						None => {}
 					},
 					None => {
 						for unnamed_pipeline in unnamed_pipeline_vec {
-							unnamed_pipeline.join().unwrap();
+							let result = unnamed_pipeline.1.join().unwrap();
+
+							match unnamed_pipeline.0 {
+								Some(result_as) => match result.result {
+									Some(result) => {
+										self.variable_map.insert(result_as, result);
+									}
+									None => (),
+								},
+								None => (),
+							}
 						}
 						unnamed_pipeline_vec = Vec::new();
 					}
@@ -174,13 +197,33 @@ impl SubExecution {
 				AST::AwaitAll => {
 					for named_pipeline_vec in named_pipeline_map.into_iter() {
 						for named_pipeline in named_pipeline_vec.1 {
-							named_pipeline.join().unwrap();
+							let result = named_pipeline.1.join().unwrap();
+
+							match named_pipeline.0 {
+								Some(result_as) => match result.result {
+									Some(result) => {
+										self.variable_map.insert(result_as, result);
+									}
+									None => (),
+								},
+								None => (),
+							}
 						}
 					}
 					named_pipeline_map = HashMap::new();
 
 					for unnamed_pipeline in unnamed_pipeline_vec {
-						unnamed_pipeline.join().unwrap();
+						let result = unnamed_pipeline.1.join().unwrap();
+
+						match unnamed_pipeline.0 {
+							Some(result_as) => match result.result {
+								Some(result) => {
+									self.variable_map.insert(result_as, result);
+								}
+								None => (),
+							},
+							None => (),
+						}
 					}
 					unnamed_pipeline_vec = Vec::new();
 				}
@@ -213,15 +256,38 @@ impl SubExecution {
 					match &non_block_ast.name {
 						Some(name) => match named_pipeline_map.get_mut(&name.token_content) {
 							Some(named_pipeline_vec) => {
-								named_pipeline_vec.push(pipeline_join_handle);
+								named_pipeline_vec.push((
+									non_block_ast
+										.pipeline
+										.result_as
+										.as_ref()
+										.map(|result_as| result_as.token_content.clone()),
+									pipeline_join_handle,
+								));
 							}
 							None => {
-								named_pipeline_map
-									.insert(name.token_content.clone(), vec![pipeline_join_handle]);
+								named_pipeline_map.insert(
+									name.token_content.clone(),
+									vec![(
+										non_block_ast
+											.pipeline
+											.result_as
+											.as_ref()
+											.map(|result_as| result_as.token_content.clone()),
+										pipeline_join_handle,
+									)],
+								);
 							}
 						},
 						None => {
-							unnamed_pipeline_vec.push(pipeline_join_handle);
+							unnamed_pipeline_vec.push((
+								non_block_ast
+									.pipeline
+									.result_as
+									.as_ref()
+									.map(|result_as| result_as.token_content.clone()),
+								pipeline_join_handle,
+							));
 						}
 					}
 				}
@@ -291,7 +357,18 @@ impl SubExecution {
 						.get(&pipeline_ast.name.token_content)
 					{
 						Some(pipeline) => {
-							pipeline(&argument_map)();
+							let result = pipeline(&argument_map)();
+
+							match result.result {
+								Some(result) => match &pipeline_ast.result_as {
+									Some(result_as) => {
+										self.variable_map
+											.insert(result_as.token_content.clone(), result);
+									}
+									None => (),
+								},
+								None => (),
+							}
 						}
 						None => panic!(
 							"undefined pipeline '{}' used",

@@ -66,6 +66,7 @@ pub struct IfAST {
 
 #[derive(Debug)]
 pub struct PipelineAST {
+    pub result_as: Option<Token>,
     pub name: Token,
     pub argument_vec: Vec<(Token, ExpressionAST)>,
 }
@@ -101,6 +102,7 @@ enum ParserStatus {
     StatementPrintErr,
     StatementAwait,
     StatementReturn,
+    StatementResult,
     StatementNonBlock,
     StatementIf,
     StatementIfNext(IfAST),
@@ -182,6 +184,10 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     status = ParserStatus::StatementAwait;
                     continue 'parse;
                 }
+                TokenType::KeywordResult => {
+                    status = ParserStatus::StatementResult;
+                    continue 'parse;
+                }
                 TokenType::KeywordNonBlock => {
                     status = ParserStatus::StatementNonBlock;
                     continue 'parse;
@@ -194,7 +200,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', nonblock' and 'if' keyword only can be used here.",
+                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', 'result', 'nonblock' and 'if' keyword only can be used here.",
                     );
                     return Err(());
                 }
@@ -303,6 +309,9 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
             });
 
             return Ok(ast_vec);
+        } else if let ParserStatus::StatementResult = status {
+            ast_vec.push(parse_pipeline_result(lexer)?);
+            return Ok(ast_vec);
         } else if let ParserStatus::StatementNonBlock = status {
             let name_token = next_lookahead(lexer)?;
 
@@ -313,7 +322,13 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                 } else {
                     None
                 },
-                pipeline: match parse_pipeline(lexer)? {
+                pipeline: match if next_lookahead(lexer)?.token_type == TokenType::At {
+                    next(lexer)?;
+                    next_token(lexer, TokenType::KeywordResult)?;
+                    parse_pipeline_result(lexer)
+                } else {
+                    parse_pipeline(lexer)
+                }? {
                     AST::Pipeline(pipeline_ast) => pipeline_ast,
                     AST::Call(call_ast) => {
                         print_last_line_of_token(
@@ -376,6 +391,11 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     status = ParserStatus::StatementAwait;
                     continue 'parse;
                 }
+                TokenType::KeywordResult => {
+                    ast_vec.push(AST::If(if_ast));
+                    status = ParserStatus::StatementResult;
+                    continue 'parse;
+                }
                 TokenType::KeywordNonBlock => {
                     ast_vec.push(AST::If(if_ast));
                     status = ParserStatus::StatementNonBlock;
@@ -394,7 +414,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', nonblock', 'if' and 'else' keyword only can be used here.",
+                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', 'result', 'nonblock', 'if' and 'else' keyword only can be used here.",
                     );
                     return Err(());
                 }
@@ -457,6 +477,28 @@ fn parse_block(lexer: &mut Lexer) -> Result<Vec<AST>, ()> {
     Ok(ast_vec)
 }
 
+fn parse_pipeline_result(lexer: &mut Lexer) -> Result<AST, ()> {
+    next_token(lexer, TokenType::KeywordAs)?;
+    let result_as = Some(next_token(lexer, TokenType::Id)?);
+
+    let mut ast = parse_pipeline(lexer)?;
+
+    if let AST::Pipeline(pipeline_ast) = &mut ast {
+        pipeline_ast.result_as = result_as;
+    } else if let AST::Call(call_ast) = &ast {
+        print_last_line_of_token(
+            lexer,
+            &call_ast.name,
+            "An result statement should be followed by an pipeline statement.",
+        );
+        return Err(());
+    } else {
+        unreachable!();
+    }
+
+    Ok(ast)
+}
+
 fn parse_pipeline(lexer: &mut Lexer) -> Result<AST, ()> {
     let id_token = next_token(lexer, TokenType::Id)?;
 
@@ -493,6 +535,7 @@ fn parse_pipeline(lexer: &mut Lexer) -> Result<AST, ()> {
 
     Ok(AST::Pipeline {
         0: PipelineAST {
+            result_as: None,
             name: id_token,
             argument_vec,
         },
