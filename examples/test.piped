@@ -1,5 +1,6 @@
 
 @import "./basics.piped" as basic;
+@import "./return_a_value.piped" as return_a_value;
 @import "./subpipeline.piped" as subpipeline;
 
 subpipeline value="foo";
@@ -27,3 +28,18 @@ basic;
 
 @print "nonblocks are running in background!";
 @print "awating them...";
+
+@nonblock "return_foo"
+@result as foo
+return_a_value;
+
+@result as bar
+return_a_value;
+
+@print "foo exists? " is_exists("foo");
+@print "bar exists? " is_exists("bar");
+
+@await "return_foo";
+
+@print "foo exists? " is_exists("foo");
+@print "bar exists? " is_exists("bar");
