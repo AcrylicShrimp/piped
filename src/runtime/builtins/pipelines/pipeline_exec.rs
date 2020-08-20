@@ -53,6 +53,7 @@ define_pipeline!(Exec, argument_map => {
 				},
 				Err(..) => false,
 			},
+			result: None,
 		}
 	})
 });

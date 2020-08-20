@@ -6,4 +6,5 @@ pub type PipelineExecution = dyn FnMut() -> PipelineExecutionResult + Send;
 
 pub struct PipelineExecutionResult {
 	pub success: bool,
+	pub result: Option<Value>,
 }

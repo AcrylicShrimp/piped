@@ -10,6 +10,7 @@ pub enum AST {
     Set(SetAST),
     Print(PrintAST),
     PrintErr(PrintErrAST),
+    Return(ReturnAST),
     Await(AwaitAST),
     AwaitAll,
     NonBlock(NonBlockAST),
@@ -38,6 +39,11 @@ pub struct PrintAST {
 #[derive(Debug)]
 pub struct PrintErrAST {
     pub expression_vec: Vec<ExpressionAST>,
+}
+
+#[derive(Debug)]
+pub struct ReturnAST {
+    pub value: Option<ExpressionAST>,
 }
 
 #[derive(Debug)]
@@ -94,6 +100,7 @@ enum ParserStatus {
     StatementPrint,
     StatementPrintErr,
     StatementAwait,
+    StatementReturn,
     StatementNonBlock,
     StatementIf,
     StatementIfNext(IfAST),
@@ -167,6 +174,10 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     status = ParserStatus::StatementPrintErr;
                     continue 'parse;
                 }
+                TokenType::KeywordReturn => {
+                    status = ParserStatus::StatementReturn;
+                    continue 'parse;
+                }
                 TokenType::KeywordAwait => {
                     status = ParserStatus::StatementAwait;
                     continue 'parse;
@@ -183,7 +194,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "A 'import', 'set', 'print', 'printErr', 'await', 'nonblock' and 'if' keyword only can be used here.",
+                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', nonblock' and 'if' keyword only can be used here.",
                     );
                     return Err(());
                 }
@@ -249,6 +260,18 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                 0: PrintErrAST { expression_vec },
             });
 
+            return Ok(ast_vec);
+        } else if let ParserStatus::StatementReturn = status {
+            ast_vec.push(AST::Return(ReturnAST {
+                value: if next_lookahead(lexer)?.token_type == TokenType::Semicolon {
+                    next(lexer)?;
+                    None
+                } else {
+                    let value = Some(parse_expression(lexer)?);
+                    next_token(lexer, TokenType::Semicolon)?;
+                    value
+                },
+            }));
             return Ok(ast_vec);
         } else if let ParserStatus::StatementAwait = status {
             let semicolon_or_string_or_all = next(lexer)?;
@@ -343,6 +366,11 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     status = ParserStatus::StatementPrintErr;
                     continue 'parse;
                 }
+                TokenType::KeywordReturn => {
+                    ast_vec.push(AST::If(if_ast));
+                    status = ParserStatus::StatementReturn;
+                    continue 'parse;
+                }
                 TokenType::KeywordAwait => {
                     ast_vec.push(AST::If(if_ast));
                     status = ParserStatus::StatementAwait;
@@ -366,7 +394,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "A 'import', 'set', 'print', 'printErr', 'await', 'nonblock', 'if' and 'else' keyword only can be used here.",
+                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', nonblock', 'if' and 'else' keyword only can be used here.",
                     );
                     return Err(());
                 }

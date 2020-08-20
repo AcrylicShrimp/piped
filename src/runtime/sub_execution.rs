@@ -38,8 +38,8 @@ impl SubExecution {
 		&mut self,
 		function_map: &Arc<HashMap<String, Box<dyn Function + Sync + Send>>>,
 		pipeline: &ImportedPipeline,
-	) {
-		let (named_pipelines, unnamed_pipelines) =
+	) -> Option<Value> {
+		let (return_value, named_pipelines, unnamed_pipelines) =
 			self.__execute(&function_map, pipeline, pipeline.ast_vec());
 
 		for (_, pipeline) in named_pipelines.into_iter() {
@@ -51,6 +51,17 @@ impl SubExecution {
 		for pipeline in unnamed_pipelines {
 			pipeline.join().unwrap();
 		}
+
+		match return_value {
+			Some(value) => {
+				if value.is_some() {
+					value
+				} else {
+					None
+				}
+			}
+			None => None,
+		}
 	}
 
 	fn __execute(
@@ -59,6 +70,7 @@ impl SubExecution {
 		pipeline: &ImportedPipeline,
 		ast_vec: &Vec<AST>,
 	) -> (
+		Option<Option<Value>>,
 		HashMap<String, Vec<JoinHandle<PipelineExecutionResult>>>,
 		Vec<JoinHandle<PipelineExecutionResult>>,
 	) {
@@ -97,9 +109,11 @@ impl SubExecution {
 													.set_variable(name.clone(), value.clone());
 											}
 
-											sub_execution
-												.execute(&function_map, &imported_pipeline);
-											PipelineExecutionResult { success: true }
+											PipelineExecutionResult {
+												success: true,
+												result: sub_execution
+													.execute(&function_map, &imported_pipeline),
+											}
 										})
 									}),
 								);
@@ -128,6 +142,18 @@ impl SubExecution {
 						eprint!("{}", self.expression_to_value(function_map, expression_ast));
 					}
 					eprintln!("");
+				}
+				AST::Return(return_ast) => {
+					return (
+						Some(
+							return_ast
+								.value
+								.as_ref()
+								.map(|value| self.expression_to_value(function_map, value)),
+						),
+						named_pipeline_map,
+						unnamed_pipeline_vec,
+					);
 				}
 				AST::Await(await_ast) => match &await_ast.name {
 					Some(name) => match named_pipeline_map.remove(&name.token_content) {
@@ -207,7 +233,7 @@ impl SubExecution {
 						Value::Integer(integer_value) => integer_value != 0,
 						Value::String(string_value) => !string_value.is_empty(),
 					} {
-						let (named_pipelines, unnamed_pipelines) =
+						let (return_value, named_pipelines, unnamed_pipelines) =
 							self.__execute(function_map, pipeline, &if_ast.if_ast_vec);
 
 						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
@@ -222,8 +248,12 @@ impl SubExecution {
 						}
 
 						unnamed_pipeline_vec.extend(unnamed_pipelines);
+
+						if return_value.is_some() {
+							return (return_value, named_pipeline_map, unnamed_pipeline_vec);
+						}
 					} else if let Some(else_ast) = &if_ast.else_ast_vec {
-						let (named_pipelines, unnamed_pipelines) =
+						let (return_value, named_pipelines, unnamed_pipelines) =
 							self.__execute(function_map, pipeline, else_ast);
 
 						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
@@ -238,6 +268,10 @@ impl SubExecution {
 						}
 
 						unnamed_pipeline_vec.extend(unnamed_pipelines);
+
+						if return_value.is_some() {
+							return (return_value, named_pipeline_map, unnamed_pipeline_vec);
+						}
 					}
 				}
 				AST::Pipeline(pipeline_ast) => {
@@ -284,7 +318,7 @@ impl SubExecution {
 			}
 		}
 
-		(named_pipeline_map, unnamed_pipeline_vec)
+		(None, named_pipeline_map, unnamed_pipeline_vec)
 	}
 
 	fn expression_to_value(
