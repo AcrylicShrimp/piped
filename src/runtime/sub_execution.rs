@@ -126,7 +126,7 @@ impl SubExecution {
 							}
 						}
 					} else {
-						panic!("path must be a string type",)
+						panic!("path must be a string type");
 					}
 				}
 				AST::Set(set_ast) => {
