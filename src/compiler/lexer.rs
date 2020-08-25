@@ -36,6 +36,8 @@ pub enum TokenType {
     KeywordAll,      // all
     KeywordFor,      // for
     KeywordIn,       // in
+    KeywordBreak,    // break
+    KeywordContinue, // continue
     KeywordIf,       // if
     KeywordElse,     // else
     Comment,         // // ...
@@ -371,6 +373,8 @@ impl Lexer {
             "all" => return_token(TokenType::KeywordAll, content),
             "for" => return_token(TokenType::KeywordFor, content),
             "in" => return_token(TokenType::KeywordIn, content),
+            "break" => return_token(TokenType::KeywordBreak, content),
+            "continue" => return_token(TokenType::KeywordContinue, content),
             "if" => return_token(TokenType::KeywordIf, content),
             "else" => return_token(TokenType::KeywordElse, content),
             _ => return_token(TokenType::Id, content),

@@ -11,6 +11,13 @@ use std::path::Path;
 use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 
+enum SubExecutionResult {
+	Done,
+	Break,
+	Continue,
+	Return(Option<Value>),
+}
+
 pub struct SubExecution {
 	execution: Arc<Execution>,
 	variable_map: HashMap<String, Value>,
@@ -39,8 +46,8 @@ impl SubExecution {
 		function_map: &Arc<HashMap<String, Box<dyn Function + Sync + Send>>>,
 		pipeline: &ImportedPipeline,
 	) -> Option<Value> {
-		let (return_value, named_pipelines, unnamed_pipelines) =
-			self.__execute(&function_map, pipeline, pipeline.ast_vec());
+		let (result, named_pipelines, unnamed_pipelines) =
+			self.__execute(&function_map, pipeline, pipeline.ast_vec(), false);
 
 		for (_, pipeline) in named_pipelines.into_iter() {
 			for pipeline in pipeline {
@@ -52,15 +59,10 @@ impl SubExecution {
 			pipeline.1.join().unwrap();
 		}
 
-		match return_value {
-			Some(value) => {
-				if value.is_some() {
-					value
-				} else {
-					None
-				}
-			}
-			None => None,
+		match result {
+			SubExecutionResult::Done => None,
+			SubExecutionResult::Return(return_value) => return_value,
+			_ => unreachable!(),
 		}
 	}
 
@@ -69,8 +71,9 @@ impl SubExecution {
 		function_map: &Arc<HashMap<String, Box<dyn Function + Sync + Send>>>,
 		pipeline: &ImportedPipeline,
 		ast_vec: &Vec<AST>,
+		allow_break_and_continue: bool,
 	) -> (
-		Option<Option<Value>>,
+		SubExecutionResult,
 		HashMap<String, Vec<(Option<String>, JoinHandle<PipelineExecutionResult>)>>,
 		Vec<(Option<String>, JoinHandle<PipelineExecutionResult>)>,
 	) {
@@ -148,7 +151,7 @@ impl SubExecution {
 				}
 				AST::Return(return_ast) => {
 					return (
-						Some(
+						SubExecutionResult::Return(
 							return_ast
 								.value
 								.as_ref()
@@ -297,11 +300,65 @@ impl SubExecution {
 					{
 						for value in array_value.into_iter() {
 							self.set_variable(for_ast.variable_name.token_content.clone(), value);
-							self.__execute(function_map, pipeline, &for_ast.body_ast_vec);
+
+							let (result, named_pipelines, unnamed_pipelines) =
+								self.__execute(function_map, pipeline, &for_ast.body_ast_vec, true);
+
+							for (pipeline_name, pipeline) in named_pipelines.into_iter() {
+								match named_pipeline_map.get_mut(&pipeline_name) {
+									Some(named_pipeline_vec) => {
+										named_pipeline_vec.extend(pipeline);
+									}
+									None => {
+										named_pipeline_map.insert(pipeline_name, pipeline);
+									}
+								}
+							}
+
+							unnamed_pipeline_vec.extend(unnamed_pipelines);
+
+							match result {
+								SubExecutionResult::Done => {}
+								SubExecutionResult::Break => {
+									break;
+								}
+								SubExecutionResult::Continue => {
+									continue;
+								}
+								SubExecutionResult::Return(return_value) => {
+									return (
+										SubExecutionResult::Return(return_value),
+										named_pipeline_map,
+										unnamed_pipeline_vec,
+									);
+								}
+							}
 						}
 					} else {
 						panic!("iterable must be a array type");
 					}
+				}
+				AST::Break => {
+					if !allow_break_and_continue {
+						panic!("break statement is not allowed here");
+					}
+
+					return (
+						SubExecutionResult::Break,
+						named_pipeline_map,
+						unnamed_pipeline_vec,
+					);
+				}
+				AST::Continue => {
+					if !allow_break_and_continue {
+						panic!("continue statement is not allowed here");
+					}
+
+					return (
+						SubExecutionResult::Continue,
+						named_pipeline_map,
+						unnamed_pipeline_vec,
+					);
 				}
 				AST::If(if_ast) => {
 					if match self.expression_to_value(function_map, &if_ast.criteria) {
@@ -311,8 +368,12 @@ impl SubExecution {
 						Value::Integer(integer_value) => integer_value != 0,
 						Value::String(string_value) => !string_value.is_empty(),
 					} {
-						let (return_value, named_pipelines, unnamed_pipelines) =
-							self.__execute(function_map, pipeline, &if_ast.if_ast_vec);
+						let (result, named_pipelines, unnamed_pipelines) = self.__execute(
+							function_map,
+							pipeline,
+							&if_ast.if_ast_vec,
+							allow_break_and_continue,
+						);
 
 						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
 							match named_pipeline_map.get_mut(&pipeline_name) {
@@ -327,12 +388,37 @@ impl SubExecution {
 
 						unnamed_pipeline_vec.extend(unnamed_pipelines);
 
-						if return_value.is_some() {
-							return (return_value, named_pipeline_map, unnamed_pipeline_vec);
+						match result {
+							SubExecutionResult::Done => {}
+							SubExecutionResult::Break => {
+								return (
+									SubExecutionResult::Break,
+									named_pipeline_map,
+									unnamed_pipeline_vec,
+								);
+							}
+							SubExecutionResult::Continue => {
+								return (
+									SubExecutionResult::Continue,
+									named_pipeline_map,
+									unnamed_pipeline_vec,
+								);
+							}
+							SubExecutionResult::Return(return_value) => {
+								return (
+									SubExecutionResult::Return(return_value),
+									named_pipeline_map,
+									unnamed_pipeline_vec,
+								);
+							}
 						}
 					} else if let Some(else_ast) = &if_ast.else_ast_vec {
-						let (return_value, named_pipelines, unnamed_pipelines) =
-							self.__execute(function_map, pipeline, else_ast);
+						let (result, named_pipelines, unnamed_pipelines) = self.__execute(
+							function_map,
+							pipeline,
+							else_ast,
+							allow_break_and_continue,
+						);
 
 						for (pipeline_name, pipeline) in named_pipelines.into_iter() {
 							match named_pipeline_map.get_mut(&pipeline_name) {
@@ -347,8 +433,29 @@ impl SubExecution {
 
 						unnamed_pipeline_vec.extend(unnamed_pipelines);
 
-						if return_value.is_some() {
-							return (return_value, named_pipeline_map, unnamed_pipeline_vec);
+						match result {
+							SubExecutionResult::Done => {}
+							SubExecutionResult::Break => {
+								return (
+									SubExecutionResult::Break,
+									named_pipeline_map,
+									unnamed_pipeline_vec,
+								);
+							}
+							SubExecutionResult::Continue => {
+								return (
+									SubExecutionResult::Continue,
+									named_pipeline_map,
+									unnamed_pipeline_vec,
+								);
+							}
+							SubExecutionResult::Return(return_value) => {
+								return (
+									SubExecutionResult::Return(return_value),
+									named_pipeline_map,
+									unnamed_pipeline_vec,
+								);
+							}
 						}
 					}
 				}
@@ -407,7 +514,11 @@ impl SubExecution {
 			}
 		}
 
-		(None, named_pipeline_map, unnamed_pipeline_vec)
+		(
+			SubExecutionResult::Done,
+			named_pipeline_map,
+			unnamed_pipeline_vec,
+		)
 	}
 
 	fn expression_to_value(
