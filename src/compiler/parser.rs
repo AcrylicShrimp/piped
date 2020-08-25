@@ -427,6 +427,11 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     status = ParserStatus::StatementNonBlock;
                     continue 'parse;
                 }
+                TokenType::KeywordFor => {
+                    ast_vec.push(AST::If(if_ast));
+                    status = ParserStatus::StatementFor;
+                    continue 'parse;
+                }
                 TokenType::KeywordIf => {
                     ast_vec.push(AST::If(if_ast));
                     status = ParserStatus::StatementIf;
@@ -440,7 +445,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', 'result', 'nonblock', 'if' and 'else' keyword only can be used here.",
+                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', 'result', 'nonblock', 'for', 'if' and 'else' keyword only can be used here.",
                     );
                     return Err(());
                 }
