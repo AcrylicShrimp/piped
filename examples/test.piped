@@ -43,3 +43,7 @@ return_a_value;
 
 @print "foo exists? " is_exists("foo");
 @print "bar exists? " is_exists("bar");
+
+@for variable in [1, 2, 3, 4, 5] {
+	@print variable;
+}
