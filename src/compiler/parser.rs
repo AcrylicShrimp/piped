@@ -14,6 +14,7 @@ pub enum AST {
     Await(AwaitAST),
     AwaitAll,
     NonBlock(NonBlockAST),
+    For(ForAST),
     If(IfAST),
     Pipeline(PipelineAST),
     Call(CallAST),
@@ -55,6 +56,13 @@ pub struct AwaitAST {
 pub struct NonBlockAST {
     pub name: Option<Token>,
     pub pipeline: PipelineAST,
+}
+
+#[derive(Debug)]
+pub struct ForAST {
+    pub variable_name: Token,
+    pub variable_in: ExpressionAST,
+    pub body_ast_vec: Vec<AST>,
 }
 
 #[derive(Debug)]
@@ -104,6 +112,7 @@ enum ParserStatus {
     StatementReturn,
     StatementResult,
     StatementNonBlock,
+    StatementFor,
     StatementIf,
     StatementIfNext(IfAST),
     StatementIfNextStatement(IfAST),
@@ -192,6 +201,10 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     status = ParserStatus::StatementNonBlock;
                     continue 'parse;
                 }
+                TokenType::KeywordFor => {
+                    status = ParserStatus::StatementFor;
+                    continue 'parse;
+                }
                 TokenType::KeywordIf => {
                     status = ParserStatus::StatementIf;
                     continue 'parse;
@@ -200,7 +213,7 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     print_last_line_of_token(
                         lexer,
                         &statement_token,
-                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', 'result', 'nonblock' and 'if' keyword only can be used here.",
+                        "A 'import', 'set', 'print', 'printErr', 'return', 'await', 'result', 'nonblock', 'for' and 'if' keyword only can be used here.",
                     );
                     return Err(());
                 }
@@ -340,6 +353,19 @@ fn parse_statement(lexer: &mut Lexer, status: ParserStatus) -> Result<Vec<AST>, 
                     }
                     _ => unreachable!(),
                 },
+            }));
+
+            return Ok(ast_vec);
+        } else if let ParserStatus::StatementFor = status {
+            let variable_name_token = next_token(lexer, TokenType::Id)?;
+            next_token(lexer, TokenType::KeywordIn)?;
+            let variable_in_expression = parse_expression(lexer)?;
+            let body_ast_vec = parse_block(lexer)?;
+
+            ast_vec.push(AST::For(ForAST {
+                variable_name: variable_name_token,
+                variable_in: variable_in_expression,
+                body_ast_vec,
             }));
 
             return Ok(ast_vec);

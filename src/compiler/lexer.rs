@@ -34,6 +34,8 @@ pub enum TokenType {
     KeywordNonBlock, // nonblock
     KeywordAwait,    // await
     KeywordAll,      // all
+    KeywordFor,      // for
+    KeywordIn,       // in
     KeywordIf,       // if
     KeywordElse,     // else
     Comment,         // // ...
@@ -367,6 +369,8 @@ impl Lexer {
             "nonblock" => return_token(TokenType::KeywordNonBlock, content),
             "await" => return_token(TokenType::KeywordAwait, content),
             "all" => return_token(TokenType::KeywordAll, content),
+            "for" => return_token(TokenType::KeywordFor, content),
+            "in" => return_token(TokenType::KeywordIn, content),
             "if" => return_token(TokenType::KeywordIf, content),
             "else" => return_token(TokenType::KeywordElse, content),
             _ => return_token(TokenType::Id, content),

@@ -291,6 +291,18 @@ impl SubExecution {
 						}
 					}
 				}
+				AST::For(for_ast) => {
+					if let Value::Array(array_value) =
+						self.expression_to_value(function_map, &for_ast.variable_in)
+					{
+						for value in array_value.into_iter() {
+							self.set_variable(for_ast.variable_name.token_content.clone(), value);
+							self.__execute(function_map, pipeline, &for_ast.body_ast_vec);
+						}
+					} else {
+						panic!("iterable must be a array type");
+					}
+				}
 				AST::If(if_ast) => {
 					if match self.expression_to_value(function_map, &if_ast.criteria) {
 						Value::Array(array_value) => !array_value.is_empty(),
