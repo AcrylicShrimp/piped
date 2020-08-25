@@ -1,7 +1,7 @@
 use super::super::super::function::Function;
 use super::{
     function_contains, function_equals, function_get, function_glob, function_is_exists,
-    function_join_path, function_len, function_typeof,
+    function_join_path, function_len, function_re_replace, function_typeof,
 };
 use std::collections::HashMap;
 
@@ -41,6 +41,7 @@ pub fn build_function_map() -> HashMap<String, Box<dyn Function + Send + Sync>> 
     insert_function!(function_is_exists::IsExists, "is_exists" >>> function_map);
     insert_function!(function_join_path::JoinPath, "join_path" >>> function_map);
     insert_function!(function_len::Len, "len" >>> function_map);
+    insert_function!(function_re_replace::ReReplace, "re_replace" >>> function_map);
     insert_function!(function_typeof::Typeof, "typeof" >>> function_map);
 
     function_map

@@ -8,4 +8,5 @@ pub mod function_glob;
 pub mod function_is_exists;
 pub mod function_join_path;
 pub mod function_len;
+pub mod function_re_replace;
 pub mod function_typeof;
