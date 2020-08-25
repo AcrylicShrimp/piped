@@ -46,4 +46,8 @@ return_a_value;
 
 @for variable in [1, 2, 3, 4, 5] {
 	@print variable;
+	
+	@if equals(variable, 3) {
+		@break;
+	}
 }
