@@ -64,6 +64,7 @@ pub struct Lexer {
 
 pub enum LexerError {
     StringNotClosed(Token),
+    WhitespaceEscapeSequence(Token),
     UnexpectedCharacter(Token),
 }
 
@@ -314,7 +315,17 @@ impl Lexer {
                                 '\'' => string.push('\''),
                                 '"' => string.push('"'),
                                 '`' => string.push('`'),
-                                _ => string.push(self.ch()),
+                                _ => {
+                                    string.push(self.ch());
+
+                                    if self.ch().is_whitespace() {
+                                        return Err(LexerError::WhitespaceEscapeSequence {
+                                            0: return_token(TokenType::Unknown, string)
+                                                .ok()
+                                                .unwrap(),
+                                        });
+                                    }
+                                }
                             }
 
                             self.next_character(AdvanceMode::Pre);

@@ -824,6 +824,13 @@ fn handle_lexer_error(lexer: &Lexer, err: LexerError) {
         LexerError::StringNotClosed(token) => {
             print_last_line_of_token(lexer, &token, "String literals should be closed with \".");
         }
+        LexerError::WhitespaceEscapeSequence(token) => {
+            print_last_line_of_token(
+                lexer,
+                &token,
+                "Whitespaces are not allowed for escape sequences.",
+            );
+        }
         LexerError::UnexpectedCharacter(token) => {
             print_last_line_of_token(lexer, &token, "Remove it, this character is not allowed.");
         }
