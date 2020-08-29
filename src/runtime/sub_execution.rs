@@ -6,8 +6,10 @@ use super::function::Function;
 use super::imported_pipeline::ImportedPipeline;
 use super::pipeline::{PipelineExecutionResult, PipelineFactory};
 use super::value::Value;
+use path_absolutize::Absolutize;
+use regex::Regex;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 
@@ -93,7 +95,18 @@ impl SubExecution {
 						let mut base_path = pipeline.path().clone();
 						base_path.pop();
 
-						match self.execution.import(base_path.join(Path::new(&path))) {
+						let path = PathBuf::from(
+							base_path
+								.join(Path::new(
+									&*Regex::new("[/\\\\]")
+										.unwrap()
+										.replace_all(&path, &*MAIN_SEPARATOR.to_string()),
+								))
+								.absolutize()
+								.unwrap(),
+						);
+
+						match self.execution.import(path) {
 							Ok(imported_pipeline) => {
 								let function_map = function_map.clone();
 								let execution = self.execution.clone();
