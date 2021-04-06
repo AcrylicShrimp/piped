@@ -45,7 +45,7 @@ Variables can be one of types of below.
 | ---------- | ---------------------------------------------------------- |
 | Bool       | An boolean type that can be `true` or `false` at a time.   |
 | Integer    | A 64-bit signed integer.                                   |
-| String     | A null-terminated variable length string.                  |
+| String     | A variable length string.                  |
 | Array      | An array that contains variable length of other values.    |
 | Dictionary | An collection of key-value pairs. Keys are always strings. |
 
