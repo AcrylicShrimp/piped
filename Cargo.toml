@@ -1,20 +1,24 @@
 [package]
 name = "piped"
-description = "A pipeline orchestrator for everyone to build softwares easier and faster"
-version = "0.4.1"
-authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
-edition = "2018"
+version = "0.5.0"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[profile.release]
-lto = true
-codegen-units = 1
-panic = 'abort'
-opt-level = 'z'
-
 [dependencies]
-clap = "2.0"
-glob = "0.3.0"
-path-absolutize = "3.0.6"
-regex = "1"
+clap = { version = "4" }
+colored = { version = "2" }
+piped-diagnostics = { path = "piped-diagnostics" }
+piped-parser = { path = "piped-parser" }
+piped-span = { path = "piped-span" }
+piped-symbol = { path = "piped-symbol" }
+piped-utils = { path = "piped-utils" }
+
+[workspace]
+members = [
+  "piped-diagnostics",
+  "piped-parser",
+  "piped-span",
+  "piped-symbol",
+  "piped-utils",
+]

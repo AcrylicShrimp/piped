@@ -71,3 +71,8 @@ $RECYCLE.BIN/
 
 # Assets
 assets/
+
+
+# Added by cargo
+
+/target
